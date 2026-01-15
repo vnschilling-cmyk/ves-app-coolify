@@ -25,7 +25,7 @@ const Dashboard = () => {
   // Fetch all work logs for calculations
   useEffect(() => {
     getAllWorkLogs().then(logs => setWorkLogs(logs));
-  }, [orders]);
+  }, [orders, users]);
 
   // Get available years based on delivery date or creation date
   const years = useMemo(() => {

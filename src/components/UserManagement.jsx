@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useUsers } from '../context/UserContext';
-import { UserPlus, Users, Pencil, Check, X, Trash2, Plus } from 'lucide-react';
+
+import { UserPlus, Users, Pencil, Check, X, Trash2, Plus, LogOut } from 'lucide-react';
 import avatar_male_1 from '../assets/avatars/avatar_male_1.png';
 import avatar_male_2 from '../assets/avatars/avatar_male_2.png';
 import avatar_male_3 from '../assets/avatars/avatar_male_3.png';
@@ -38,22 +39,25 @@ const getUserAvatar = (user) => {
 };
 
 const UserManagement = () => {
-  const { users, addUser, removeUser, updateUser } = useUsers();
-  const [newUserName, setNewUserName] = useState('');
+  const { users, addUser, removeUser, updateUser, isAdmin, logout } = useUsers();
+  const [newUserFirstname, setNewUserFirstname] = useState('');
+  const [newUserLastname, setNewUserLastname] = useState('');
   const [newUserColor, setNewUserColor] = useState('#3b82f6');
   const [newUserAvatar, setNewUserAvatar] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
 
   const [editingUser, setEditingUser] = useState(null);
-  const [editName, setEditName] = useState('');
+  const [editFirstname, setEditFirstname] = useState('');
+  const [editLastname, setEditLastname] = useState('');
   const [editColor, setEditColor] = useState('#000000');
   const [editAvatar, setEditAvatar] = useState(1);
 
   const handleAddUser = (e) => {
     e.preventDefault();
-    if (newUserName.trim()) {
-      addUser(newUserName, newUserColor, newUserAvatar);
-      setNewUserName('');
+    if (newUserFirstname.trim() && newUserLastname.trim()) {
+      addUser(newUserFirstname, newUserLastname, newUserColor, newUserAvatar);
+      setNewUserFirstname('');
+      setNewUserLastname('');
       setNewUserAvatar(1);
       setIsAdding(false);
     }
@@ -61,30 +65,38 @@ const UserManagement = () => {
 
   const startEditing = (user) => {
     setEditingUser(user);
-    setEditName(user.name);
+    setEditFirstname(user.firstname || user.name.split(' ')[0] || '');
+    setEditLastname(user.lastname || user.name.split(' ').slice(1).join(' ') || '');
     setEditColor(user.color || '#3b82f6');
     setEditAvatar(user.avatar_id || 1);
     setIsAdding(false);
   };
 
   const saveEditing = () => {
-    if (editName.trim()) {
-      updateUser(editingUser.name, editName.trim(), editColor, editAvatar);
+    if (editFirstname.trim() && editLastname.trim()) {
+      updateUser(editingUser, editFirstname.trim(), editLastname.trim(), editColor, editAvatar);
     }
     setEditingUser(null);
   };
 
   const handleDelete = (user) => {
     if (window.confirm(`Möchtest du "${user.name}" und ALLE zugehörigen Daten löschen?`)) {
-      removeUser(user.name);
+      removeUser(user);
     }
   };
 
   return (
     <div className="user-management-section">
       <div className="section-header">
-        <h2><Users size={24} className="icon-main" /> Team verwalten</h2>
-        <p>Verwalte Mitarbeiter und deren Profile.</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2><Users size={24} className="icon-main" /> Team verwalten</h2>
+            <p>Verwalte Mitarbeiter und deren Profile.</p>
+          </div>
+          <button onClick={logout} className="logout-btn">
+            <LogOut size={18} /> Abmelden
+          </button>
+        </div>
       </div>
 
       <div className="user-grid">
@@ -107,13 +119,23 @@ const UserManagement = () => {
                       </div>
                     ))}
                   </div>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    autoFocus
-                    className="edit-name-input"
-                  />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    <input
+                      type="text"
+                      placeholder="Vorname"
+                      value={editFirstname}
+                      onChange={(e) => setEditFirstname(e.target.value)}
+                      autoFocus
+                      className="edit-name-input"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Nachname"
+                      value={editLastname}
+                      onChange={(e) => setEditLastname(e.target.value)}
+                      className="edit-name-input"
+                    />
+                  </div>
                   <div className="color-picker-wrapper">
                     <label>Farbe:</label>
                     <input
@@ -138,12 +160,19 @@ const UserManagement = () => {
                     <div className="user-stats-badge">Mitarbeiter</div>
                   </div>
                   <div className="card-actions-footer">
-                    <button onClick={() => startEditing(u)} className="footer-btn edit">
-                      <Pencil size={16} /> Bearbeiten
-                    </button>
-                    <button onClick={() => handleDelete(u)} className="footer-btn delete">
-                      <Trash2 size={16} /> Löschen
-                    </button>
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => startEditing(u)} className="footer-btn edit">
+                          <Pencil size={16} /> Bearbeiten
+                        </button>
+                        <button onClick={() => handleDelete(u)} className="footer-btn delete">
+                          <Trash2 size={16} /> Löschen
+                        </button>
+                      </>
+                    )}
+                    {!isAdmin && (
+                      <div className="footer-no-access">Nur Lesen</div>
+                    )}
                   </div>
                 </>
               )}
@@ -152,50 +181,63 @@ const UserManagement = () => {
         })}
 
         {/* Add User Card */}
-        {isAdding ? (
-          <div className="user-card add-card-active">
-            <h3>Neuer Benutzer</h3>
-            <form onSubmit={handleAddUser} className="add-form">
-              <div className="avatar-selector-grid">
-                {[1, 2, 3, 4, 5, 6, 7, 8].map(id => (
-                  <div
-                    key={id}
-                    className={`avatar-option ${newUserAvatar === id ? 'selected' : ''}`}
-                    onClick={() => setNewUserAvatar(id)}
-                  >
-                    <img src={avatarMap[id]} alt="avatar" />
-                  </div>
-                ))}
-              </div>
-              <input
-                type="text"
-                placeholder="Name..."
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                autoFocus
-                className="add-input"
-              />
-              <div className="color-picker-row">
-                <span>Farbe wählen:</span>
-                <input
-                  type="color"
-                  value={newUserColor}
-                  onChange={(e) => setNewUserColor(e.target.value)}
-                />
-              </div>
-              <div className="add-actions">
-                <button type="submit" className="confirm-add-btn" disabled={!newUserName.trim()}>Erstellen</button>
-                <button type="button" onClick={() => setIsAdding(false)} className="cancel-add-btn">Abbrechen</button>
-              </div>
-            </form>
-          </div>
-        ) : (
-          <button className="user-card add-card-btn" onClick={() => setIsAdding(true)}>
-            <div className="add-icon-circle">
-              <Plus size={32} />
+        {/* Add User Card - Only for Admins */}
+        {isAdmin && (
+          isAdding ? (
+            <div className="user-card add-card-active">
+              <h3>Neuer Benutzer</h3>
+              {/* ... form content ... */}
+              <form onSubmit={handleAddUser} className="add-form">
+                <div className="avatar-selector-grid">
+                  {[1, 2, 3, 4, 5, 6, 7, 8].map(id => (
+                    <div
+                      key={id}
+                      className={`avatar-option ${newUserAvatar === id ? 'selected' : ''}`}
+                      onClick={() => setNewUserAvatar(id)}
+                    >
+                      <img src={avatarMap[id]} alt="avatar" />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Vorname..."
+                    value={newUserFirstname}
+                    onChange={(e) => setNewUserFirstname(e.target.value)}
+                    autoFocus
+                    className="add-input"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nachname..."
+                    value={newUserLastname}
+                    onChange={(e) => setNewUserLastname(e.target.value)}
+                    className="add-input"
+                  />
+                </div>
+                <div className="color-picker-row">
+                  <span>Farbe wählen:</span>
+                  <input
+                    type="color"
+                    value={newUserColor}
+                    onChange={(e) => setNewUserColor(e.target.value)}
+                  />
+                </div>
+                <div className="add-actions">
+                  <button type="submit" className="confirm-add-btn" disabled={!newUserFirstname.trim() || !newUserLastname.trim()}>Erstellen</button>
+                  <button type="button" onClick={() => setIsAdding(false)} className="cancel-add-btn">Abbrechen</button>
+                </div>
+              </form>
             </div>
-            <span>Benutzer hinzufügen</span>
-          </button>
+          ) : (
+            <button className="user-card add-card-btn" onClick={() => setIsAdding(true)}>
+              <div className="add-icon-circle">
+                <Plus size={32} />
+              </div>
+              <span>Benutzer hinzufügen</span>
+            </button>
+          )
         )}
       </div>
 
@@ -480,6 +522,34 @@ const UserManagement = () => {
         .add-card-active {
             border: 2px solid var(--color-primary);
             box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.1);
+        }
+
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            background: white;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .logout-btn:hover {
+            border-color: #ef4444;
+            color: #ef4444;
+            background: #fef2f2;
+        }
+        
+        .footer-no-access {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            color: var(--color-text-muted);
+            font-size: 0.8rem;
+            background: #f8fafc;
         }
       `}</style>
     </div>

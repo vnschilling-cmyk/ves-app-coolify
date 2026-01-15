@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { getUsers, saveUser, updateUserInfo, deleteUser } from '../services/storage';
 import { useOrders } from './OrderContext';
-import { supabase } from '../lib/supabase';
+import { pb } from '../lib/pocketbase';
 
 const UserContext = createContext();
 
@@ -36,37 +36,97 @@ export const UserProvider = ({ children }) => {
         localStorage.setItem('currentUser', JSON.stringify(user));
     };
 
+    // Auth State
+    const [isAuthenticated, setIsAuthenticated] = useState(pb.authStore.isValid);
+    const [isAdmin, setIsAdmin] = useState(pb.authStore.isSuperuser);
+
     useEffect(() => {
+        // Init auth state
+        setIsAuthenticated(pb.authStore.isValid);
+        setIsAdmin(pb.authStore.isSuperuser);
+
+        // Sync currentUser with AuthStore model if logged in
+        if (pb.authStore.isValid && pb.authStore.model) {
+            const model = pb.authStore.model;
+            // If it's a staff member (has name fields), set as currentUser
+            // If admin, model might be different, but we mostly care about isAdmin flag
+            if (model.collectionName === 'staff') {
+                // Adapt model to our internal user structure if needed (e.g. synthetic name)
+                const userObj = { ...model, name: `${model.firstname} ${model.lastname}` };
+                setCurrentUser(userObj);
+                localStorage.setItem('currentUser', JSON.stringify(userObj));
+            }
+        }
+
+        // Listen for auth changes
+        const unsub = pb.authStore.onChange((token, model) => {
+            setIsAuthenticated(pb.authStore.isValid);
+            setIsAdmin(pb.authStore.isSuperuser);
+
+            if (model && model.collectionName === 'staff') {
+                const userObj = { ...model, name: `${model.firstname} ${model.lastname}` };
+                setCurrentUser(userObj);
+                localStorage.setItem('currentUser', JSON.stringify(userObj));
+            } else if (!model) {
+                // Logout
+                setCurrentUser(null);
+                localStorage.removeItem('currentUser');
+            }
+        });
+
+        // Data fetching
         fetchUsers();
 
         // Realtime Subscription
-        const subscription = supabase
-            .channel('public:users')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
-                fetchUsers();
-            })
-            .subscribe();
+        // Only verify connection if we want realtime updates. 
+        // Public List rule allows this even if not logged in (technically), 
+        // but typically we only subscribe when looking at the dashboard.
+        pb.collection('staff').subscribe('*', function (e) {
+            fetchUsers();
+        });
 
         return () => {
-            supabase.removeChannel(subscription);
+            unsub();
+            pb.collection('staff').unsubscribe('*');
         };
     }, []);
 
-    const addUser = async (name, color, avatarId = 1) => {
-        if (!name.trim()) return;
-        await saveUser(name.trim(), color, avatarId);
+    const login = async (identity, password) => {
+        try {
+            // First try as Staff
+            try {
+                await pb.collection('staff').authWithPassword(identity, password);
+                return true;
+            } catch (err) {
+                // If failed, try as Admin
+                await pb.admins.authWithPassword(identity, password);
+                return true;
+            }
+        } catch (error) {
+            console.error("Login failed:", error);
+            return false;
+        }
+    };
+
+    const logout = () => {
+        pb.authStore.clear();
+    };
+
+    const addUser = async (firstname, lastname, color, avatarId = 1) => {
+        if (!firstname.trim() || !lastname.trim()) return;
+        await saveUser(firstname.trim(), lastname.trim(), color, avatarId);
         fetchUsers();
     };
 
-    const removeUser = async (name) => {
-        await deleteUser(name); // Assuming deleteUser is imported or defined elsewhere
+    const removeUser = async (user) => {
+        await deleteUser(user);
         fetchUsers();
         fetchOrders();
     };
 
-    const updateUser = async (oldName, newName, newColor, newAvatarId) => {
-        if (newName && !newName.trim()) return;
-        await updateUserInfo(oldName, newName, newColor, newAvatarId);
+    const updateUser = async (user, firstname, lastname, newColor, newAvatarId) => {
+        if (!firstname.trim() || !lastname.trim()) return;
+        await updateUserInfo(user, firstname.trim(), lastname.trim(), newColor, newAvatarId);
         fetchUsers();
         fetchOrders();
     };
@@ -82,7 +142,11 @@ export const UserProvider = ({ children }) => {
             addUser,
             removeUser,
             updateUser,
-            renameUser
+            renameUser,
+            login,
+            logout,
+            isAuthenticated,
+            isAdmin
         }}>
             {children}
         </UserContext.Provider>

@@ -39,8 +39,8 @@ export const parsePositionsFromText = (text) => {
         const articleId = match[2];
         const contentBlock = match[3];
 
-        const qtyMatch = contentBlock.match(/(\d+)\s+Stück/i);
-        const quantity = qtyMatch ? qtyMatch[1] : '1';
+        const qtyMatch = contentBlock.match(/(\d+)\s*(?:Stück|Stk|x)/i);
+        const quantity = qtyMatch ? parseInt(qtyMatch[1]) : 1;
 
         const deliveryMatch = contentBlock.match(/Liefertermin.*?bis:\s*(\d{2}\.\d{2}\.\d{4})/i);
         const deliveryDate = deliveryMatch ? deliveryMatch[1].split('.').reverse().join('-') : '';
@@ -49,47 +49,78 @@ export const parsePositionsFromText = (text) => {
         const contentWithoutDates = contentBlock.replace(/\d{2}\.\d{2}\.\d{4}/g, '');
 
         // Broad Regex for Price: Matches 1.234,56 | 42,00 | 2,10
-        // MUST have a comma to distinguish from IDs (e.g. 114145.1) and Dates.
-        // Matches: 1.234,56 | 1 234,56 | 1234,56 | 42,00
-        const prices = contentWithoutDates.match(/(\d{1,5}(?:[.\s]\d{3})*,\s*\d{1,2})(?!\d)/g);
+        const pricesMatch = contentWithoutDates.match(/(\d{1,5}(?:[.\s]\d{3})*,\s*\d{1,2})(?!\d)/g);
 
-        let value = '0';
-        if (prices && prices.length > 0) {
+        let value = 0;
+        let unitPrice = 0;
+
+        if (pricesMatch && pricesMatch.length > 0) {
             const parsePrice = (str) => {
                 let clean = str.replace(/\s/g, '');
                 if (clean.includes(',') && clean.includes('.')) {
-                    // 1.234,56 -> 1234.56
                     return parseFloat(clean.replace(/\./g, '').replace(',', '.'));
                 } else if (clean.includes(',')) {
-                    // 1234,56 -> 1234.56
                     return parseFloat(clean.replace(',', '.'));
                 } else {
-                    // 1234.56 -> 1234.56
                     return parseFloat(clean);
                 }
             };
 
-            // LOGIC: Take the LAST found price in the block.
-            // This usually corresponds to the "Gesamtpreis" column.
-            const lastPrice = parsePrice(prices[prices.length - 1]);
-            value = lastPrice.toFixed(2);
+            const prices = pricesMatch.map(parsePrice);
+
+            if (prices.length >= 2) {
+                // Multiple prices found: Assuming logic [Unit, ..., Total]
+                const potentialTotal = prices[prices.length - 1];
+                const potentialUnit = prices[0];
+
+                // If math matches roughly, trust it
+                if (Math.abs(potentialUnit * quantity - potentialTotal) < 0.1) {
+                    value = potentialTotal;
+                    unitPrice = potentialUnit;
+                } else {
+                    // Fallback: Use the largest value found as Total? 
+                    // Or check if user prefers CALCULATION based on feedback
+                    const minPrice = Math.min(...prices);
+                    value = minPrice * quantity;
+                    unitPrice = minPrice;
+                }
+            } else {
+                // Single price found
+                const p = prices[0];
+                if (quantity > 1) {
+                    // With >1 qty, a single price is highly likely the Unit Price (e.g. 2.80)
+                    // Calculate Total
+                    value = p * quantity;
+                    unitPrice = p;
+                } else {
+                    value = p;
+                    unitPrice = p;
+                }
+            }
         }
 
         let desc = contentBlock
-            .replace(/(\d+)\s+Stück/i, '')
-            .replace(/Liefertermin.*?bis:\s*\d{2}\.\d{2}\.\d{4}/i, '')
+            .replace(/(\d+)\s*(?:Stück|Stk|x)/i, '') // Remove Qty
+            .replace(/Liefertermin.*?bis:\s*\d{2}\.\d{2}\.\d{4}/i, '') // Remove Date
             .replace(/(\d{1,5}(?:[.\s]\d{3})*,\s*\d{1,2})(?!\d)/g, '') // Remove prices
+            .replace(new RegExp(articleId, 'g'), '') // Remove repeated Article ID
+            .replace(/Stück\s+\d+/gi, '') // Remove inverted "Stück 100" artifacts
             .replace(/\s+/g, ' ')
             .trim();
 
-        if (desc.length > 50) desc = desc.substring(0, 50) + '...';
+        // Clean up common leading artifacts
+        desc = desc.replace(/^[-\s]+/, '');
+        desc = desc.replace(/^[0-9]+\s+/, ''); // Remove leading separate numbers often found
+
+        if (desc.length > 80) desc = desc.substring(0, 80) + '...';
 
         positions.push({
             temp_id: Math.random().toString(36).substr(2, 9),
             id: `${globalOrderId}-${posNr}`,
             quantity: quantity,
-            description: `${articleId} ${desc}`,
-            value: value,
+            description: desc,
+            article_id: articleId,
+            value: value.toFixed(2),
             delivery_date: deliveryDate || globalDate
         });
     }
@@ -121,10 +152,17 @@ export const parsePositionsFromText = (text) => {
         }
     }
 
+    // 5. Contact Person Parsing
+    const contactMatch = text.match(/(?:kfm\.|kaufm\.|techn\.)?\s*Sachbearbeitung\s+(.+?)(\n|Telefon|Unsere|Email|$)/i);
+    let contactPerson = contactMatch ? contactMatch[1].trim() : '';
+    // Cleanup extra artifacts if regex was too greedy
+    contactPerson = contactPerson.replace(/\s*Unsere.*$/i, '').replace(/\s*Telefon.*$/i, '').trim();
+
     return {
         globalOrderId,
         globalDate,
         company,
+        contact_person: contactPerson,
         positions
     };
 };

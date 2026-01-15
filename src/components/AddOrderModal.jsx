@@ -3,6 +3,8 @@ import { Camera, Upload, Edit, X } from 'lucide-react';
 import ScanOrderModal from './ScanOrderModal';
 import ImportOrderModal from './ImportOrderModal';
 
+import ErrorBoundary from './ErrorBoundary';
+
 const AddOrderModal = ({ onClose, onSelectManual }) => {
   const [showScanner, setShowScanner] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -28,7 +30,11 @@ const AddOrderModal = ({ onClose, onSelectManual }) => {
   }
 
   if (showImport) {
-    return <ImportOrderModal onClose={onClose} initialText={scannedText} />;
+    return (
+      <ErrorBoundary>
+        <ImportOrderModal onClose={onClose} initialText={scannedText} />
+      </ErrorBoundary>
+    );
   }
 
   return (

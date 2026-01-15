@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { saveOrder, getOrders, deleteOrder, startWorkLog, stopWorkLog, getOpenWorkLog, updateOrderStatus } from '../services/storage';
-import { supabase } from '../lib/supabase';
+import { pb } from '../lib/pocketbase';
 
 const OrderContext = createContext();
 
@@ -33,17 +33,15 @@ export const OrderProvider = ({ children }) => {
     useEffect(() => {
         fetchOrders();
 
-        // Optional: Realtime subscription
-        const subscription = supabase
-            .channel('orders_channel')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-                console.log('Realtime update:', payload);
-                fetchOrders();
-            })
-            .subscribe();
+        // PocketBase Realtime
+        pb.collection('orders').subscribe('*', function (e) {
+            console.log('Realtime update:', e.action, e.record);
+            // We can optimize by appending/updating state directly, but fetching all is safer/easier for now
+            fetchOrders();
+        });
 
         return () => {
-            subscription.unsubscribe();
+            pb.collection('orders').unsubscribe('*');
         };
     }, []);
 

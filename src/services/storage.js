@@ -1,176 +1,178 @@
-import { supabase } from '../lib/supabase';
+import { pb } from '../lib/pocketbase';
 
 // Orders
 export const getOrders = async () => {
-  const { data, error } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false }); // Latest first
-
-  if (error) {
+  try {
+    // PocketBase returns a paginated list by default, using getFullList to get all
+    const records = await pb.collection('orders').getFullList({
+      sort: '-created', // created is the default timestamp field in PB
+    });
+    return records;
+  } catch (error) {
     console.error('Error fetching orders:', error);
     return [];
   }
-  return data;
 };
 
 export const saveOrder = async (order) => {
-  // Check for duplicate order_id
-  const { data: existing } = await supabase
-    .from('orders')
-    .select('id')
-    .eq('order_id', order.id)
-    .maybeSingle();
+  try {
+    // Check for duplicate order_id
+    // PocketBase using getFirstListItem for single record fetch with filter
+    try {
+      const existing = await pb.collection('orders').getFirstListItem(`order_id="${order.id}"`);
+      if (existing) {
+        throw new Error('DUPLICATE_ORDER');
+      }
+    } catch (err) {
+      if (err.status !== 404) throw err; // Ignore 404 (not found)
+    }
 
-  if (existing) {
-    throw new Error('DUPLICATE_ORDER');
-  }
-
-  // Map format to DB schema if needed, but we used matching names in SQL
-  const { data, error } = await supabase
-    .from('orders')
-    .insert([{
+    const data = {
       order_id: order.id,
       value: order.value,
       date: order.date,
       user_name: order.user,
       company: order.company,
+      article_id: order.article_id,
       quantity: order.quantity,
-      delivery_date: order.delivery_date
-    }])
-    .select();
+      delivery_date: order.delivery_date,
+      status: 'Erfasst' // Default status
+    };
 
-  if (error) {
+    const record = await pb.collection('orders').create(data);
+    return record;
+  } catch (error) {
+    if (error.message === 'DUPLICATE_ORDER') throw error;
     console.error('Error saving order:', error);
     return null;
   }
-  return data ? data[0] : null;
 };
 
 export const saveOrders = async (orders) => {
   if (!orders || orders.length === 0) return [];
 
-  const mappedOrders = orders.map(order => ({
-    order_id: order.id,
-    value: order.value,
-    date: order.date,
-    user_name: order.user,
-    company: order.company,
-    quantity: order.quantity,
-    delivery_date: order.delivery_date
-  }));
+  // PocketBase doesn't have bulk insert in the JS SDK yet, we loop (parallel/batch)
+  // For safety/simplicity we do sequential or parallel. Parallel is faster.
+  const promises = orders.map(order => {
+    const data = {
+      order_id: order.id,
+      value: order.value,
+      date: order.date,
+      user_name: order.user,
+      company: order.company,
+      contact_person: order.contact_person,
+      article_id: order.article_id,
+      quantity: order.quantity,
+      delivery_date: order.delivery_date
+    };
+    return pb.collection('orders').create(data);
+  });
 
-  const { data, error } = await supabase
-    .from('orders')
-    .insert(mappedOrders)
-    .select();
-
-  if (error) {
+  try {
+    const results = await Promise.all(promises);
+    return results;
+  } catch (error) {
     console.error('Error saving bulk orders:', error);
-    // Might fail partially if one ID exists? Supabase prevents all if one fails usually.
     throw error;
   }
-  return data;
 };
 
 export const deleteOrder = async (id) => {
-  const { error } = await supabase
-    .from('orders')
-    .delete()
-    .eq('id', id);
-
-  if (error) {
+  try {
+    // id here is the PocketBase Record ID (db_id in context)
+    await pb.collection('orders').delete(id);
+    return true;
+  } catch (error) {
     console.error('Error deleting order:', error);
     return false;
   }
-  return true;
 };
 
 // Users
 export const getUsers = async () => {
-  const { data, error } = await supabase
-    .from('users')
-    .select('name, color, avatar_id')
-    .order('created_at', { ascending: true });
-
-  if (error) {
+  try {
+    const records = await pb.collection('staff').getFullList({
+      sort: '+created',
+    });
+    // Synthetic "name" property for backward compatibility
+    return records.map(r => ({
+      ...r,
+      name: `${r.firstname} ${r.lastname}`
+    }));
+  } catch (error) {
     console.error('Error fetching users:', error);
-    // Return dummy data if error
-    return [{ name: 'User A', color: '#3b82f6', avatar_id: 1 }, { name: 'User B', color: '#10b981', avatar_id: 2 }];
-  }
-
-  if (!data || data.length === 0) {
     return [];
   }
-
-  return data;
 };
 
-export const saveUser = async (name, color = '#3b82f6', avatarId = 1) => {
-  const { data, error } = await supabase
-    .from('users')
-    .insert([{ name, color, avatar_id: avatarId }])
-    .select();
-
-  if (error) {
-    if (error.code === '23505') return null; // Unique violation
-    alert('Fehler beim Benutzer-Erstellen: ' + error.message);
+export const saveUser = async (firstname, lastname, color = '#3b82f6', avatarId = 1) => {
+  try {
+    const data = {
+      firstname,
+      lastname,
+      color,
+      avatar_id: avatarId.toString()
+    };
+    const record = await pb.collection('staff').create(data);
+    return { ...record, name: `${firstname} ${lastname}` };
+  } catch (error) {
     console.error('Error adding user:', error);
+    alert('Fehler beim Benutzer-Erstellen: ' + error.message);
+    return null;
   }
-  return data?.[0];
 };
 
-export const deleteUser = async (name) => {
+export const deleteUser = async (user) => {
   // 1. Delete Orders of this user
-  const { error: orderError } = await supabase
-    .from('orders')
-    .delete()
-    .eq('user_name', name);
-
-  if (orderError) {
-    alert('Fehler beim Löschen der Aufträge: ' + orderError.message);
+  try {
+    const orders = await pb.collection('orders').getFullList({
+      filter: `user_name="${user.name}"`
+    });
+    // Delete all found
+    await Promise.all(orders.map(o => pb.collection('orders').delete(o.id)));
+  } catch (err) {
+    console.error("Error cleaning up user orders", err);
+    alert('Fehler beim Löschen der Aufträge: ' + err.message);
     return false;
   }
 
   // 2. Delete User
-  const { error: userError } = await supabase
-    .from('users')
-    .delete()
-    .eq('name', name);
-
-  if (userError) {
-    alert('Fehler beim Löschen des Benutzers: ' + userError.message);
+  try {
+    await pb.collection('staff').delete(user.id);
+    return true;
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    alert('Fehler beim Löschen des Benutzers: ' + error.message);
     return false;
   }
-  return true;
 };
 
-export const updateUserInfo = async (oldName, newName, newColor, newAvatarId) => {
+export const updateUserInfo = async (user, newFirstname, newLastname, newColor, newAvatarId) => {
   const updates = {};
-  if (newName) updates.name = newName;
+  if (newFirstname) updates.firstname = newFirstname;
+  if (newLastname) updates.lastname = newLastname;
   if (newColor) updates.color = newColor;
   if (newAvatarId !== undefined) updates.avatar_id = newAvatarId;
 
-  // 1. Update User Table
-  const { error: userError } = await supabase
-    .from('users')
-    .update(updates)
-    .eq('name', oldName);
-
-  if (userError) {
-    alert('Fehler beim Aktualisieren: ' + userError.message);
+  try {
+    await pb.collection('staff').update(user.id, updates);
+  } catch (error) {
+    alert('Fehler beim Aktualisieren: ' + error.message);
     return;
   }
 
   // 2. Update Orders if name changed
-  if (newName && newName !== oldName) {
-    const { error: orderError } = await supabase
-      .from('orders')
-      .update({ user_name: newName })
-      .eq('user_name', oldName);
+  const oldName = user.name;
+  const newName = `${newFirstname} ${newLastname}`;
 
-    if (orderError) {
-      alert('Fehler beim Auftrags-Update: ' + orderError.message);
+  if (newName && newName !== oldName) {
+    try {
+      const orders = await pb.collection('orders').getFullList({
+        filter: `user_name="${oldName}"`
+      });
+      await Promise.all(orders.map(o => pb.collection('orders').update(o.id, { user_name: newName })));
+    } catch (error) {
+      alert('Fehler beim Auftrags-Update: ' + error.message);
     }
   }
 };
@@ -178,136 +180,133 @@ export const updateUserInfo = async (oldName, newName, newColor, newAvatarId) =>
 // --- Time Tracking & Status ---
 
 export const getOpenWorkLog = async (userName) => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .select('*, orders(order_id, company, quantity)')
-    .eq('user_name', userName)
-    .is('end_time', null)
-    .single();
+  try {
+    // end_time is empty
+    const record = await pb.collection('work_logs').getFirstListItem(`user_name="${userName}" && end_time=""`, {
+      expand: 'order_id' // Assuming order_id is a relation now? Or sticking to string?
+      // If order_id in work_logs is just the ORDER_ID string (e.g. 12345), we can't Expand.
+      // The current code assumes relations: "orders(order_id...)" in supabase select.
+      // For now, let's assume we store the "orders" RECORD ID in work_logs.order_id if we want relations.
+      // BUT: migration is complex. Let's stick to storing what we stored before.
+    });
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching open work log:', error);
+    // Need to manual fetch order details if not a relation, or if it IS a relation and we Expanded.
+    // Let's assume for this transition we need to fetch the order to get company/quantity stuff.
+    // Wait: The original code used a Join.
+    // In PB: If 'order_id' field in 'work_logs' is type Relation -> 'orders', we can expand.
+    // I will assume we set it up as a Relation in PB schema.
+    // If not, we fetch it manually.
+    if (record.expand && record.expand.order_id) {
+      const o = record.expand.order_id;
+      record.orders = { order_id: o.order_id, company: o.company, quantity: o.quantity }; // mimic structure
+    } else {
+      // Fallback or if not relation
+      // We probably stored the DB Identifier (UUID) in Supabase.
+      // We will store DB ID in PB too.
+      try {
+        const o = await pb.collection('orders').getOne(record.order_id);
+        record.orders = { order_id: o.order_id, company: o.company, quantity: o.quantity };
+      } catch (e) { console.log("linked order not found"); }
+    }
+    return record;
+  } catch (error) {
+    if (error.status !== 404) console.error('Error fetching open work log:', error);
+    return null;
   }
-  return data;
 };
 
 export const startWorkLog = async (orderId, userName) => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .insert([{
-      order_id: orderId,
+  try {
+    const data = {
+      order_id: orderId, // This should be the Record ID of the order
       user_name: userName,
       start_time: new Date().toISOString()
-    }])
-    .select()
-    .single();
+    };
+    const record = await pb.collection('work_logs').create(data);
 
-  if (error) {
+    // Status Update
+    await updateOrderStatus(orderId, 'In Bearbeitung');
+
+    return record;
+  } catch (error) {
     console.error('Error starting work log:', error);
     return null;
   }
-
-  // Also update order status to 'In Bearbeitung'
-  await updateOrderStatus(orderId, 'In Bearbeitung');
-
-  return data;
 };
 
 export const stopWorkLog = async (logId, quantity) => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .update({
+  try {
+    const data = {
       end_time: new Date().toISOString(),
       quantity_produced: parseInt(quantity) || 0
-    })
-    .eq('id', logId)
-    .select()
-    .single();
-
-  if (error) {
+    };
+    const record = await pb.collection('work_logs').update(logId, data);
+    return record;
+  } catch (error) {
     console.error('Error stopping work log:', error);
     return null;
   }
-  return data;
 };
 
 export const getWorkLogs = async (orderDbId) => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .select('*')
-    .eq('order_id', orderDbId)
-    .order('start_time', { ascending: false });
-
-  if (error) {
+  try {
+    const records = await pb.collection('work_logs').getFullList({
+      filter: `order_id="${orderDbId}"`,
+      sort: '-start_time'
+    });
+    return records;
+  } catch (error) {
     console.error('Error fetching work logs:', error);
     return [];
   }
-  return data;
 };
 
 export const updateOrderStatus = async (orderDbId, status) => {
-  const { error } = await supabase
-    .from('orders')
-    .update({ status })
-    .eq('id', orderDbId);
-
-  if (error) {
+  try {
+    await pb.collection('orders').update(orderDbId, { status });
+    return true;
+  } catch (error) {
     console.error('Error updating order status:', error);
     return false;
   }
-  return true;
 };
 
 export const updateWorkLog = async (logId, updates) => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .update(updates)
-    .eq('id', logId)
-    .select()
-    .single();
-
-  if (error) {
+  try {
+    const record = await pb.collection('work_logs').update(logId, updates);
+    return record;
+  } catch (error) {
     console.error('Error updating work log:', error);
     return null;
   }
-  return data;
 };
 
 export const createWorkLog = async (logData) => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .insert([logData])
-    .select()
-    .single();
-
-  if (error) {
+  try {
+    const record = await pb.collection('work_logs').create(logData);
+    return record;
+  } catch (error) {
     console.error('Error creating work log:', error);
     return null;
   }
-  return data;
 };
 
 export const deleteWorkLog = async (logId) => {
-  const { error } = await supabase
-    .from('work_logs')
-    .delete()
-    .eq('id', logId);
-
-  if (error) {
+  try {
+    await pb.collection('work_logs').delete(logId);
+    return true;
+  } catch (error) {
     console.error('Error deleting work log:', error);
     return false;
   }
-  return true;
 };
 
 export const getAllWorkLogs = async () => {
-  const { data, error } = await supabase
-    .from('work_logs')
-    .select('*');
-
-  if (error) {
+  try {
+    const records = await pb.collection('work_logs').getFullList();
+    return records;
+  } catch (error) {
     console.error('Error fetching all work logs:', error);
     return [];
   }
-  return data;
 };

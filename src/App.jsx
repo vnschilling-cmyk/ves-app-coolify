@@ -8,10 +8,24 @@ import OrderList from './components/OrderList';
 import UserManagement from './components/UserManagement';
 import AddOrderModal from './components/AddOrderModal';
 import TimeTracking from './components/TimeTracking';
+import LoginScreen from './components/LoginScreen';
+import { useUsers } from './context/UserContext';
 import { LayoutDashboard, Users, FileText, Plus, Home } from 'lucide-react';
-import logo from './assets/logo.png';
+import logo from './assets/app-logo.png';
 
 function App() {
+
+  return (
+    <OrderProvider>
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
+    </OrderProvider>
+  );
+}
+
+function AppContent() {
+  const { isAuthenticated } = useUsers();
   const [currentView, setCurrentView] = useState('dashboard');
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -35,69 +49,72 @@ function App() {
     }
   };
 
+  // If not authenticated, show Login Screen
+  if (!isAuthenticated) {
+    return <LoginScreen />;
+  }
+
   return (
-    <OrderProvider>
-      <UserProvider>
-        <div className="app-container">
-          <header className="app-header">
-            <div className="container header-content">
-              <div className="logo-container">
-                <img src={logo} alt="VEScnc" className="app-logo" />
-              </div>
-            </div>
-          </header>
-
-          <main className="container main-content">
-            {renderContent()}
-          </main>
-
-          <nav className="bottom-nav">
-            <button
-              className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setCurrentView('dashboard')}
-            >
-              <Home size={24} />
-              <span>Home</span>
-            </button>
-
-            <button
-              className="nav-item plus-btn"
-              onClick={() => setShowAddModal(true)}
-            >
-              <div className="plus-circle">
-                <Plus size={28} color="white" />
-              </div>
-              <span>Neu</span>
-            </button>
-
-            <button
-              className={`nav-item ${currentView === 'orders' ? 'active' : ''}`}
-              onClick={() => setCurrentView('orders')}
-            >
-              <FileText size={24} />
-              <span>Aufträge</span>
-            </button>
-
-            <button
-              className={`nav-item ${currentView === 'users' ? 'active' : ''}`}
-              onClick={() => setCurrentView('users')}
-            >
-              <Users size={24} />
-              <span>Benutzer</span>
-            </button>
-          </nav>
-
-          {showAddModal && (
-            <AddOrderModal
-              onClose={() => setShowAddModal(false)}
-              onSelectManual={handleManualSelect}
-            />
-          )}
-
-          <TimeTracking onAddOrder={() => setShowAddModal(true)} />
-
+    <div className="app-container">
+      <header className="app-header">
+        <div className="container header-content">
+          <div className="logo-container">
+            <img src={logo} alt="VEScnc" className="app-logo" />
+          </div>
         </div>
-        <style>{`
+      </header>
+
+      <main className="container main-content">
+        {renderContent()}
+      </main>
+
+      <nav className="bottom-nav">
+        <button
+          className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setCurrentView('dashboard')}
+        >
+          <Home size={24} />
+          <span>Home</span>
+        </button>
+
+        <button
+          className="nav-item plus-btn"
+          onClick={() => setShowAddModal(true)}
+        >
+          <div className="plus-circle">
+            <Plus size={28} color="white" />
+          </div>
+          <span>Neu</span>
+        </button>
+
+        <button
+          className={`nav-item ${currentView === 'orders' ? 'active' : ''}`}
+          onClick={() => setCurrentView('orders')}
+        >
+          <FileText size={24} />
+          <span>Aufträge</span>
+        </button>
+
+        <button
+          className={`nav-item ${currentView === 'users' ? 'active' : ''}`}
+          onClick={() => setCurrentView('users')}
+        >
+          <Users size={24} />
+          <span>Benutzer</span>
+        </button>
+      </nav>
+
+      {showAddModal && (
+        <AddOrderModal
+          onClose={() => setShowAddModal(false)}
+          onSelectManual={handleManualSelect}
+        />
+      )}
+
+      <TimeTracking onAddOrder={() => setShowAddModal(true)} />
+
+
+      <style>{`
           .app-container {
             min-height: 100vh;
             background-color: var(--color-bg);
@@ -232,8 +249,7 @@ function App() {
           }
 
         `}</style>
-      </UserProvider>
-    </OrderProvider>
+    </div>
   );
 }
 
