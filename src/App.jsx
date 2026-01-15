@@ -14,6 +14,8 @@ import DeviceFrame from './components/DeviceFrame';
 import { useUsers } from './context/UserContext';
 import { LayoutDashboard, Users, FileText, Plus, Home, Package } from 'lucide-react';
 import logo from './assets/app-logo.png';
+import './App.css';
+import './components/DeviceFrame.css';
 
 function App() {
 

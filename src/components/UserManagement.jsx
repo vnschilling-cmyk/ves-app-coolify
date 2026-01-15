@@ -88,12 +88,12 @@ const UserManagement = () => {
   return (
     <div className="user-management-section">
       <div className="section-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
             <h2><Users size={24} className="icon-main" /> Team verwalten</h2>
             <p>Verwalte Mitarbeiter und deren Profile.</p>
           </div>
-          <button onClick={logout} className="logout-btn">
+          <button onClick={logout} className="logout-btn" style={{ alignSelf: 'flex-start' }}>
             <LogOut size={18} /> Abmelden
           </button>
         </div>
@@ -119,7 +119,7 @@ const UserManagement = () => {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <input
                       type="text"
                       placeholder="Vorname"
@@ -199,7 +199,7 @@ const UserManagement = () => {
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <input
                     type="text"
                     placeholder="Vorname..."
@@ -264,8 +264,8 @@ const UserManagement = () => {
         }
 
         .user-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            display: flex;
+            flex-direction: column;
             gap: 24px;
         }
 
@@ -344,16 +344,17 @@ const UserManagement = () => {
         .card-actions-footer {
             width: 100%;
             display: flex;
+            flex-direction: column; /* Stack buttons */
             border-top: 1px solid var(--color-border);
-            margin-top: auto; /* Push to bottom */
+            margin-top: auto;
         }
 
         .footer-btn {
-            flex: 1;
+            width: 100%;
             background: none;
             border: none;
             padding: 12px;
-            font-size: 0.9rem;
+            font-size: 1rem;
             font-weight: 500;
             display: flex;
             align-items: center;
@@ -365,7 +366,8 @@ const UserManagement = () => {
         }
 
         .footer-btn:first-child {
-            border-right: 1px solid var(--color-border);
+            border-right: none;
+            border-bottom: 1px solid var(--color-border);
         }
 
         .footer-btn:hover {

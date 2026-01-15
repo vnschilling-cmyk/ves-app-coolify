@@ -103,63 +103,47 @@ const OrderList = () => {
 
 
 
-      <div className="table-responsive">
-        <table className="order-table" ref={tableRef}>
-          <thead>
-            <tr>
-              <th style={{ width: '40px' }}></th> {/* Info Icon */}
-              <th>Nr.</th>
-              <th className="text-right">Menge</th>
-              <th className="text-right">Wert</th>
-              <th>Liefertermin</th>
-              <th>Firma</th>
-              <th style={{ width: '40px' }}></th> {/* Delete Action */}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredOrders.length > 0 ? (
-              filteredOrders.map(order => {
-                const userColor = getUserColor(order.user);
-                return (
-                  <tr key={order.id}>
-                    <td>
-                      <button
-                        className="icon-btn info-btn"
-                        onClick={() => setSelectedOrder(order)}
-                        title="Verlauf anzeigen"
-                        style={{ color: '#3b82f6' }}
-                      >
-                        <Info size={18} />
-                      </button>
-                    </td>
-                    <td className="font-mono">{order.id}</td>
-                    <td className="text-right">{order.quantity}</td>
-                    <td className="text-right">
-                      {Math.round(order.value || 0).toLocaleString('de-DE')}
-                    </td>
-                    <td>{formatDate(order.delivery_date || order.date)}</td>
-                    <td><span className="truncate-text">{order.company}</span></td>
-                    <td className="actions-cell">
-                      <button
-                        className="icon-btn delete-btn"
-                        onClick={() => handleDelete(order.db_id)}
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="8" className="empty-state">
-                  <AlertOctagon size={48} className="text-muted" />
-                  <p>Noch keine Aufträge vorhanden.</p>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+      <div className="order-cards-list">
+        {filteredOrders.length > 0 ? (
+          filteredOrders.map(order => (
+            <div key={order.id} className="order-mobile-card" onClick={() => setSelectedOrder(order)}>
+              <div className="order-card-header">
+                <span className="order-nr">#{order.id}</span>
+                <span className="order-date">{formatDate(order.delivery_date || order.date)}</span>
+              </div>
+              <div className="order-card-body">
+                <div className="order-company-name">{order.company}</div>
+                <div className="order-stats-row">
+                  <div className="stat-pill">
+                    <span className="stat-label">Menge:</span>
+                    <span className="stat-value">{order.quantity}</span>
+                  </div>
+                  <div className="stat-pill">
+                    <span className="stat-label">Wert:</span>
+                    <span className="stat-value">{Math.round(order.value || 0).toLocaleString('de-DE')} €</span>
+                  </div>
+                </div>
+              </div>
+              <div className="order-card-footer">
+                <button
+                  className="card-action-btn delete"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(order.db_id);
+                  }}
+                >
+                  <Trash2 size={16} /> Löschen
+                </button>
+                <div className="view-details-hint">Details anzeigen <Info size={14} /></div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className="empty-state">
+            <AlertOctagon size={48} className="text-muted" />
+            <p>Noch keine Aufträge vorhanden.</p>
+          </div>
+        )}
       </div>
 
       {/* Order Details Modal */}
@@ -191,50 +175,128 @@ const OrderList = () => {
 
                 .list-header {
                     display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 1.5rem;
-                    flex-wrap: wrap;
+                    flex-direction: column;
                     gap: 1rem;
+                    margin-bottom: 1.5rem;
                 }
                 .search-export-group {
                     display: flex;
+                    flex-direction: column;
                     gap: 1rem;
-                    align-items: center;
-                    flex-wrap: wrap;
                 }
                 .search-input-wrapper {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
+                    width: 100%;
                 }
                 .search-input {
-                    padding: 0.5rem 1rem 0.5rem 2.5rem;
+                    padding: 0.75rem 1rem 0.75rem 2.5rem;
                     border: 1px solid var(--color-border);
-                    border-radius: 6px;
-                    font-size: 0.9rem;
-                    width: 200px;
-                }
-                .search-icon {
-                    position: absolute;
-                    left: 0.75rem;
-                    color: var(--color-text-muted);
+                    border-radius: 10px;
+                    font-size: 1rem;
+                    width: 100%;
+                    background: #f8fafc;
                 }
                 .export-btn {
+                    width: 100%;
+                    justify-content: center;
+                    padding: 0.75rem;
+                    background: #f1f5f9;
+                    border: 1px solid var(--color-border);
+                    border-radius: 10px;
+                    font-weight: 600;
+                }
+
+                /* Order Card Layout */
+                .order-cards-list {
                     display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    padding: 0.5rem 1rem;
+                    flex-direction: column;
+                    gap: 16px;
+                }
+                .order-mobile-card {
                     background: white;
                     border: 1px solid var(--color-border);
-                    border-radius: 6px;
-                    font-size: 0.9rem;
-                    cursor: pointer;
-                    color: var(--color-text-main);
-                    transition: background-color 0.2s;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
                 }
-                .export-btn:hover {
-                    background-color: var(--color-background-light);
+                .order-card-header {
+                    background: #f8fafc;
+                    padding: 12px 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid var(--color-border);
+                }
+                .order-nr {
+                    font-family: monospace;
+                    font-weight: 700;
+                    color: var(--color-primary);
+                    font-size: 1rem;
+                }
+                .order-date {
+                    font-size: 0.85rem;
+                    color: var(--color-text-muted);
+                }
+                .order-card-body {
+                    padding: 16px;
+                }
+                .order-company-name {
+                    font-weight: 700;
+                    font-size: 1.1rem;
+                    margin-bottom: 12px;
+                    color: var(--color-text-main);
+                }
+                .order-stats-row {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+                .stat-pill {
+                    width: 100%;
+                    background: #f1f5f9;
+                    padding: 10px;
+                    border-radius: 10px;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 4px;
+                }
+                .stat-label {
+                    font-size: 0.7rem;
+                    color: var(--color-text-muted);
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+                .stat-value {
+                    font-weight: 700;
+                    font-size: 0.95rem;
+                    color: var(--color-text-main);
+                }
+                .order-card-footer {
+                    padding: 12px 16px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    background: white;
+                    border-top: 1px dashed var(--color-border);
+                }
+                .card-action-btn {
+                    border: none;
+                    background: none;
+                    font-weight: 600;
+                    font-size: 0.9rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    cursor: pointer;
+                }
+                .card-action-btn.delete { color: #ef4444; }
+                .view-details-hint {
+                    font-size: 0.85rem;
+                    color: var(--color-primary);
+                    display: flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-weight: 500;
                 }
                 .table-responsive {
                     overflow-x: auto;

@@ -196,14 +196,9 @@ const Dashboard = () => {
         }
 
         .dashboard-grid-top {
-          display: grid;
-          grid-template-columns: 1fr;
+          display: flex;
+          flex-direction: column;
           gap: 1.5rem;
-        }
-        @media (min-width: 768px) {
-           .dashboard-grid-top {
-             grid-template-columns: 1fr 1fr; /* Split top row */
-           }
         }
         
         .card {
@@ -225,28 +220,27 @@ const Dashboard = () => {
             height: 200px; /* Smaller Pie */
             width: 100%;
             max-width: 280px; /* Constrain width */
-            margin: 0 auto; /* Center it */
             display: flex;
             justify-content: center;
         }
-
+        .header-row {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+          margin-bottom: 1.5rem;
+        }
+        .year-select {
+          padding: 0.6rem 1rem;
+          border-radius: 8px;
+          border: 1px solid var(--color-border);
+          font-weight: 600;
+          width: 100%;
+          background: #f8fafc;
+        }
         .bar-container {
             position: relative;
             height: 250px;
             width: 100%;
-        }
-
-        .header-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 1.5rem;
-        }
-        .year-select {
-          padding: 0.4rem 1rem;
-          border-radius: 6px;
-          border: 1px solid var(--color-border);
-          font-weight: 500;
         }
         .stats-grid {
           display: flex;
