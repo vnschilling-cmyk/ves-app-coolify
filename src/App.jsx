@@ -6,21 +6,25 @@ import Dashboard from './components/Dashboard';
 import OrderForm from './components/OrderForm';
 import OrderList from './components/OrderList';
 import UserManagement from './components/UserManagement';
+import ArticleList from './components/ArticleList';
 import AddOrderModal from './components/AddOrderModal';
 import TimeTracking from './components/TimeTracking';
 import LoginScreen from './components/LoginScreen';
+import DeviceFrame from './components/DeviceFrame';
 import { useUsers } from './context/UserContext';
-import { LayoutDashboard, Users, FileText, Plus, Home } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Plus, Home, Package } from 'lucide-react';
 import logo from './assets/app-logo.png';
 
 function App() {
 
   return (
-    <OrderProvider>
-      <UserProvider>
-        <AppContent />
-      </UserProvider>
-    </OrderProvider>
+    <DeviceFrame>
+      <OrderProvider>
+        <UserProvider>
+          <AppContent />
+        </UserProvider>
+      </OrderProvider>
+    </DeviceFrame>
   );
 }
 
@@ -42,6 +46,8 @@ function AppContent() {
         return <UserManagement />;
       case 'orders':
         return <OrderList />;
+      case 'articles':
+        return <ArticleList />;
       case 'add-manual':
         return <OrderForm />;
       default:
@@ -69,39 +75,49 @@ function AppContent() {
       </main>
 
       <nav className="bottom-nav">
-        <button
-          className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setCurrentView('dashboard')}
-        >
-          <Home size={24} />
-          <span>Home</span>
-        </button>
+        <div className="bottom-nav-inner">
+          <button
+            className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setCurrentView('dashboard')}
+          >
+            <Home size={24} />
+            <span>Home</span>
+          </button>
 
-        <button
-          className="nav-item plus-btn"
-          onClick={() => setShowAddModal(true)}
-        >
-          <div className="plus-circle">
-            <Plus size={28} color="white" />
-          </div>
-          <span>Neu</span>
-        </button>
+          <button
+            className="nav-item plus-btn"
+            onClick={() => setShowAddModal(true)}
+          >
+            <div className="plus-circle">
+              <Plus size={28} color="white" />
+            </div>
+            <span>Neu</span>
+          </button>
 
-        <button
-          className={`nav-item ${currentView === 'orders' ? 'active' : ''}`}
-          onClick={() => setCurrentView('orders')}
-        >
-          <FileText size={24} />
-          <span>Aufträge</span>
-        </button>
+          <button
+            className={`nav-item ${currentView === 'orders' ? 'active' : ''}`}
+            onClick={() => setCurrentView('orders')}
+          >
+            <FileText size={24} />
+            <span>Aufträge</span>
+          </button>
 
-        <button
-          className={`nav-item ${currentView === 'users' ? 'active' : ''}`}
-          onClick={() => setCurrentView('users')}
-        >
-          <Users size={24} />
-          <span>Benutzer</span>
-        </button>
+          <button
+            className={`nav-item ${currentView === 'articles' ? 'active' : ''}`}
+            onClick={() => setCurrentView('articles')}
+          >
+            <Package size={24} />
+            <span>Artikel</span>
+          </button>
+
+          <button
+            className={`nav-item ${currentView === 'users' ? 'active' : ''}`}
+            onClick={() => setCurrentView('users')}
+          >
+            <Users size={24} />
+            <span>Benutzer</span>
+          </button>
+        </div>
       </nav>
 
       {showAddModal && (
@@ -170,6 +186,7 @@ function AppContent() {
           
           .main-content {
             padding-top: 1.5rem;
+            padding-bottom: calc(80px + env(safe-area-inset-bottom));
           }
   
           /* Bottom Navigation */
@@ -180,13 +197,21 @@ function AppContent() {
             right: 0;
             background: white;
             display: flex;
-            justify-content: space-around;
+            justify-content: center;
             align-items: center;
-            height: 70px; /* Increased height for comfort */
-            border-top: 1px solid var(--color-border);
+            height: calc(70px + env(safe-area-inset-bottom));
             padding-bottom: env(safe-area-inset-bottom);
+            border-top: 1px solid var(--color-border);
             z-index: 50;
             box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+          }
+          .bottom-nav-inner {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            max-width: 500px;
+            height: 70px;
           }
 
           .nav-item {

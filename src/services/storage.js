@@ -310,3 +310,48 @@ export const getAllWorkLogs = async () => {
     return [];
   }
 };
+
+// --- Articles ---
+
+export const getArticles = async () => {
+  try {
+    const records = await pb.collection('articles').getFullList({
+      sort: 'article_id',
+    });
+    return records;
+  } catch (error) {
+    if (error.status !== 404) console.error('Error fetching articles:', error);
+    return [];
+  }
+};
+
+export const getArticleByArticleId = async (articleId) => {
+  try {
+    const record = await pb.collection('articles').getFirstListItem(`article_id="${articleId}"`);
+    return record;
+  } catch (error) {
+    if (error.status !== 404) console.error('Error fetching article:', error);
+    return null;
+  }
+};
+
+export const createArticle = async (data) => {
+  try {
+    const record = await pb.collection('articles').create(data);
+    return record;
+  } catch (error) {
+    console.error('Error creating article:', error);
+    alert('Fehler beim Erstellen des Artikels: ' + (error.message || 'Unbekannter Fehler. Prüfen Sie ob die "articles" Collection in PocketBase existiert.'));
+    throw error;
+  }
+};
+
+export const updateArticle = async (id, data) => {
+  try {
+    const record = await pb.collection('articles').update(id, data);
+    return record;
+  } catch (error) {
+    console.error('Error updating article:', error);
+    return null;
+  }
+};

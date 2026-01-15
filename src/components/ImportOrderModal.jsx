@@ -137,7 +137,53 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
         setIsProcessing(true);
 
         try {
-            // Map to Order Objects
+            // Dynamic import for article functions
+            const { getArticleByArticleId, createArticle } = await import('../services/storage');
+
+            // 1. Collect unique article_ids and check for missing articles
+            const uniqueArticleIds = [...new Set(positions.filter(p => p.article_id).map(p => p.article_id))];
+            const missingArticles = [];
+
+            for (const artId of uniqueArticleIds) {
+                const existing = await getArticleByArticleId(artId);
+                if (!existing) {
+                    const posData = positions.find(p => p.article_id === artId);
+                    missingArticles.push({
+                        article_id: artId,
+                        description: posData?.description || '',
+                        unit_price: parseFloat(posData?.value || 0) / parseFloat(posData?.quantity || 1),
+                        customer_id: posData?.company || '',
+                        drawing_number: '',
+                        raw_material: ''
+                    });
+                }
+            }
+
+            // Ask user if they want to create new articles
+            if (missingArticles.length > 0) {
+                const articleList = missingArticles.map(a => `• ${a.article_id}`).join('\n');
+                const confirmCreate = window.confirm(
+                    `Folgende Artikel wurden nicht gefunden:\n\n${articleList}\n\nSollen diese Artikel automatisch angelegt werden?`
+                );
+
+                if (confirmCreate) {
+                    let createdCount = 0;
+                    for (const artData of missingArticles) {
+                        try {
+                            await createArticle(artData);
+                            createdCount++;
+                        } catch (err) {
+                            // Error is already shown by createArticle, continue with remaining
+                            console.error('Failed to create article:', artData.article_id, err);
+                        }
+                    }
+                    if (createdCount > 0) {
+                        alert(`${createdCount} von ${missingArticles.length} Artikel(n) wurden erfolgreich angelegt.`);
+                    }
+                }
+            }
+
+            // 2. Map to Order Objects
             const ordersToSave = positions.map(p => ({
                 id: p.id,
                 value: parseFloat(p.value.toString().replace(',', '.')) || 0,
@@ -146,7 +192,7 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                 contact_person: p.contact_person,
                 date: p.date,
                 delivery_date: p.delivery_date || globalData.delivery_date,
-                article_id: p.article_id, // Save article_id
+                article_id: p.article_id,
                 user: ''
             }));
 

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { X, Clock, Calendar, User, Pencil, Check, AlertTriangle, ArrowRight, Trash2 } from 'lucide-react';
-import { getWorkLogs, updateWorkLog, createWorkLog, deleteWorkLog } from '../services/storage';
+import { X, Clock, Calendar, User, Pencil, Check, AlertTriangle, ArrowRight, Trash2, FileText, Image as ImageIcon } from 'lucide-react';
+import { getWorkLogs, updateWorkLog, createWorkLog, deleteWorkLog, getArticleByArticleId } from '../services/storage';
 import { useUsers } from '../context/UserContext';
+import { pb } from '../lib/pocketbase';
 
 const OrderDetailsModal = ({ order, onClose }) => {
     const { users } = useUsers();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [article, setArticle] = useState(null);
 
     // Editing State
     const [editingLogId, setEditingLogId] = useState(null);
@@ -20,6 +22,9 @@ const OrderDetailsModal = ({ order, onClose }) => {
         if (order?.db_id) {
             loadLogs();
         }
+        if (order?.article_id) {
+            loadArticle();
+        }
     }, [order]);
 
     const loadLogs = async () => {
@@ -27,6 +32,20 @@ const OrderDetailsModal = ({ order, onClose }) => {
         const data = await getWorkLogs(order.db_id);
         setLogs(data);
         setLoading(false);
+    };
+
+    const loadArticle = async () => {
+        const artData = await getArticleByArticleId(order.article_id);
+        setArticle(artData);
+    };
+
+    const getArticleFileUrl = (fieldName) => {
+        if (!article || !article[fieldName]) return null;
+        return pb.files.getUrl(article, article[fieldName]);
+    };
+
+    const openFullScreen = (url) => {
+        window.open(url, '_blank');
     };
 
     const handleStartEdit = (log) => {
@@ -179,6 +198,32 @@ const OrderDetailsModal = ({ order, onClose }) => {
                             ></div>
                         </div>
                     </div>
+
+                    {/* Article Info Section */}
+                    {order.article_id && (
+                        <div className="article-info-card">
+                            <h4>Artikel: {order.article_id}</h4>
+                            {article ? (
+                                <div className="article-links-row">
+                                    {getArticleFileUrl('drawing') && (
+                                        <button className="article-link-btn" onClick={() => openFullScreen(getArticleFileUrl('drawing'))}>
+                                            <FileText size={16} /> Zeichnung
+                                        </button>
+                                    )}
+                                    {getArticleFileUrl('image') && (
+                                        <button className="article-link-btn" onClick={() => openFullScreen(getArticleFileUrl('image'))}>
+                                            <ImageIcon size={16} /> Vorschaubild
+                                        </button>
+                                    )}
+                                    {!getArticleFileUrl('drawing') && !getArticleFileUrl('image') && (
+                                        <span className="no-files-text">Keine Dateien hinterlegt</span>
+                                    )}
+                                </div>
+                            ) : (
+                                <span className="no-files-text">Artikel nicht gefunden</span>
+                            )}
+                        </div>
+                    )}
 
                     {/* Work Log List */}
                     <div className="work-logs-section">
@@ -379,6 +424,45 @@ const OrderDetailsModal = ({ order, onClose }) => {
                 .progress-bar-fill {
                     height: 100%;
                     transition: width 0.5s ease-out;
+                }
+                .article-info-card {
+                    background: #f0fdf4;
+                    padding: 16px;
+                    border-radius: 12px;
+                    border: 1px solid #86efac;
+                }
+                .article-info-card h4 {
+                    margin: 0 0 12px 0;
+                    font-size: 1rem;
+                    color: #166534;
+                }
+                .article-links-row {
+                    display: flex;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                }
+                .article-link-btn {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    padding: 8px 14px;
+                    border: 1px solid #22c55e;
+                    border-radius: 8px;
+                    background: white;
+                    color: #16a34a;
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .article-link-btn:hover {
+                    background: #dcfce7;
+                    border-color: #16a34a;
+                }
+                .no-files-text {
+                    color: #6b7280;
+                    font-size: 0.85rem;
+                    font-style: italic;
                 }
                 .work-logs-section h4 {
                     font-size: 1rem;

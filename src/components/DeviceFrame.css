@@ -1,0 +1,326 @@
+/* View Mode Toggle Buttons */
+.view-mode-toggle {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 9999;
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.view-mode-toggle button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-mode-toggle button:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.view-mode-toggle button.active {
+    background: var(--color-primary, #6366f1);
+    color: white;
+}
+
+/* Smartphone Mode - Full width without frame */
+.smartphone-mode {
+    min-height: 100vh;
+    max-width: 430px;
+    margin: 0 auto;
+    background: var(--color-bg, #f8fafc);
+}
+
+.smartphone-mode .app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.smartphone-mode .main-content {
+    flex: 1;
+    padding-bottom: 90px;
+    overflow-y: auto;
+}
+
+.smartphone-mode .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    height: 70px;
+    background: white;
+    border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 100;
+}
+
+/* Device Frame Wrapper - Only visible on larger screens */
+.device-frame-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #e2e8f0 0%, #f1f5f9 50%, #f8fafc 100%);
+    padding: 20px;
+}
+
+/* iPhone 15 Pro Frame */
+.iphone-frame {
+    position: relative;
+    width: 393px;
+    /* iPhone 15 Pro width */
+    height: 852px;
+    /* iPhone 15 Pro height */
+    background: #1c1c1e;
+    border-radius: 55px;
+    box-shadow:
+        0 0 0 3px #2c2c2e,
+        0 0 0 6px #1c1c1e,
+        0 0 0 8px #3a3a3c,
+        0 25px 50px rgba(0, 0, 0, 0.5),
+        0 50px 100px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    padding: 12px;
+}
+
+/* Side Buttons */
+.iphone-frame::before {
+    content: '';
+    position: absolute;
+    left: -4px;
+    top: 180px;
+    width: 4px;
+    height: 35px;
+    background: #3a3a3c;
+    border-radius: 2px 0 0 2px;
+}
+
+.iphone-frame::after {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: 180px;
+    width: 4px;
+    height: 100px;
+    background: #3a3a3c;
+    border-radius: 0 2px 2px 0;
+}
+
+/* Dynamic Island */
+.dynamic-island {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 37px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 1000;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Screen Content Area */
+.screen-content {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: var(--color-bg, #f8fafc);
+    border-radius: 45px;
+    overflow: hidden;
+}
+
+/* Hide scrollbar but keep functionality */
+.screen-content::-webkit-scrollbar {
+    display: none;
+}
+
+.screen-content {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+/* Home Indicator */
+.home-indicator {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 134px;
+    height: 5px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    z-index: 1000;
+}
+
+/* Adjust app styles when inside frame - using CSS Grid for precise layout */
+.screen-content .app-container {
+    height: 100%;
+    padding-top: 0;
+    display: grid;
+    grid-template-rows: auto 1fr 90px;
+    grid-template-areas:
+        "header"
+        "main"
+        "nav";
+    overflow: hidden;
+}
+
+.screen-content .app-header {
+    grid-area: header;
+    padding-top: 50px;
+}
+
+.screen-content .main-content {
+    grid-area: main;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0 !important;
+}
+
+/* Bottom nav fixed in grid - always visible */
+.screen-content .bottom-nav {
+    grid-area: nav;
+    position: relative !important;
+    border-radius: 0 0 33px 33px;
+    padding-bottom: 10px;
+    height: 90px !important;
+    background: white;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Responsive: On small screens, hide frame and show app normally */
+@media (max-width: 430px) {
+    .device-frame-wrapper {
+        display: block;
+        background: none;
+        padding: 0;
+        min-height: auto;
+    }
+
+    .iphone-frame {
+        width: 100%;
+        height: auto;
+        min-height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+        background: transparent;
+    }
+
+    .iphone-frame::before,
+    .iphone-frame::after {
+        display: none;
+    }
+
+    .dynamic-island {
+        display: none;
+    }
+
+    .home-indicator {
+        display: none;
+    }
+
+    .screen-content {
+        border-radius: 0;
+    }
+
+    .screen-content .app-container {
+        padding-top: 0;
+    }
+
+    .screen-content .app-header {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .screen-content .bottom-nav {
+        position: fixed;
+        border-radius: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+}
+
+/* Medium screens: Show frame but slightly smaller */
+@media (min-width: 431px) and (max-width: 900px) {
+    .iphone-frame {
+        transform: scale(0.85);
+        transform-origin: top center;
+    }
+}
+
+/* PWA Mode: When running as standalone app from home screen */
+@media (display-mode: standalone) {
+    .device-frame-wrapper {
+        display: block;
+        background: none;
+        padding: 0;
+        min-height: auto;
+    }
+
+    .iphone-frame {
+        width: 100%;
+        height: auto;
+        min-height: 100vh;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 0;
+        background: transparent;
+    }
+
+    .iphone-frame::before,
+    .iphone-frame::after {
+        display: none;
+    }
+
+    .dynamic-island {
+        display: none;
+    }
+
+    .home-indicator {
+        display: none;
+    }
+
+    .screen-content {
+        border-radius: 0;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .screen-content .app-container {
+        padding-top: 0;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .screen-content .app-header {
+        padding-top: env(safe-area-inset-top);
+    }
+
+    .screen-content .bottom-nav {
+        position: fixed !important;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        border-radius: 0;
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .screen-content .main-content {
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+    }
+}
