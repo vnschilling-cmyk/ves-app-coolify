@@ -1,0 +1,143 @@
+:root {
+  --font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --line-height: 1.5;
+  --font-weight: 400;
+
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-primary: #6366f1;
+  /* Indigo 500 */
+  --color-primary-hover: #4f46e5;
+  --color-text-main: #0f172a;
+  /* Darker Slate 900 */
+  --color-text-muted: #475569;
+  /* Darker Slate 600 */
+  --color-border: #cbd5e1;
+  /* Darker border */
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  font-family: var(--font-family);
+  line-height: var(--line-height);
+  font-weight: var(--font-weight);
+  color: var(--color-text-main);
+  background-color: var(--color-bg);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base resets */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  display: block;
+  /* Changed from flex center to block for full PWA layout */
+  min-width: 320px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  /* Prevent horizontal scroll */
+  -webkit-text-size-adjust: 100%;
+  /* Prevent font scaling in landscape */
+}
+
+/* Mobile Touch Optimization */
+input,
+select,
+button {
+  font-size: 16px;
+  /* Prevents auto-zoom on iOS */
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: var(--color-primary);
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.25s;
+  /* Min touch target size */
+  min-height: 44px;
+}
+
+button:hover {
+  background-color: var(--color-primary-hover);
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* iOS Safe Area Support */
+body {
+  padding-top: 0;
+  /* Handled in App header */
+}
+
+
+/* Standardized Modal Header */
+.modal-header-std {
+  position: relative;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  margin-bottom: 2rem !important;
+  width: 100%;
+}
+
+.modal-header-std h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.modal-close-std {
+  position: absolute !important;
+  top: -8px;
+  right: -8px;
+  /* Align to right edge of container */
+  background: var(--color-primary) !important;
+  /* App Blue */
+  color: white !important;
+  border: none !important;
+  border-radius: 50% !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  /* Prevent shrinking */
+  min-height: 32px !important;
+  /* Prevent shrinking */
+  aspect-ratio: 1 / 1 !important;
+  /* Force Square Aspect Ratio */
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.modal-close-std svg {
+  stroke-width: 3px;
+  /* Make X bold */
+}
+
+.modal-close-std:hover {
+  background: var(--color-primary-hover) !important;
+  transform: scale(1.1);
+}
