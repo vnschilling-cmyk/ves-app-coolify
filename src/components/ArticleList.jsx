@@ -43,6 +43,8 @@ const ArticleList = () => {
         data.append('description', formData.description || '');
         data.append('customer_id', formData.customer_id || '');
         data.append('raw_material', formData.raw_material || '');
+        data.append('production_time', formData.production_time || 0);
+        data.append('production_time_unit', formData.production_time_unit || 's');
 
         // Append array fields
         if (formData.work_steps && Array.isArray(formData.work_steps)) {
@@ -98,6 +100,8 @@ const ArticleList = () => {
             customer_id: '',
             drawing_number: '',
             raw_material: '',
+            production_time: 0,
+            production_time_unit: 's',
             work_steps: ['Büro', 'Einrichtung', 'Fertigung', 'Lieferung']
         });
         setPendingUploads({});
@@ -183,6 +187,8 @@ const ArticleList = () => {
             customer_id: article.customer_id || '',
             drawing_number: article.drawing_number || '',
             raw_material: article.raw_material || '',
+            production_time: article.production_time || 0,
+            production_time_unit: article.production_time_unit || 's',
             work_steps: article.work_steps || ['Büro', 'Einrichtung', 'Fertigung', 'Lieferung']
         });
     };
@@ -271,7 +277,7 @@ const ArticleList = () => {
                                 </div>
 
                                 <div className="form-row">
-                                    <label>Kunden-ID</label>
+                                    <label>Kunde</label>
                                     <input
                                         type="text"
                                         value={formData.customer_id}
@@ -279,51 +285,41 @@ const ArticleList = () => {
                                     />
                                 </div>
 
-                                <div className="form-row">
-                                    <label>Rohmaterial</label>
-                                    <input
-                                        type="text"
-                                        value={formData.raw_material}
-                                        onChange={(e) => handleFormChange('raw_material', e.target.value)}
-                                    />
-                                </div>
-
-                                {/* Work Steps Selection */}
-                                <div className="form-row">
-                                    <label>Relevante Arbeitsgänge</label>
-                                    <div className="work-steps-selector">
-                                        {['Büro', 'Einrichtung', 'Fertigung', 'Lieferung'].map(step => {
-                                            const isActive = formData.work_steps?.includes(step);
-                                            const style = taskStyles[step];
-                                            return (
-                                                <button
-                                                    key={step}
-                                                    type="button"
-                                                    className={`step-toggle-btn ${isActive ? 'active' : ''}`}
-                                                    style={{
-                                                        backgroundColor: isActive ? style.activeBg : '#f8fafc',
-                                                        color: isActive ? style.activeColor : '#64748b',
-                                                        borderColor: isActive ? style.activeBg : '#e2e8f0',
-                                                        display: 'flex', alignItems: 'center', gap: '8px'
-                                                    }}
-                                                    onClick={() => {
-                                                        const current = formData.work_steps || [];
-                                                        const updated = current.includes(step)
-                                                            ? current.filter(s => s !== step)
-                                                            : [...current, step];
-                                                        handleFormChange('work_steps', updated);
-                                                    }}
-                                                >
-                                                    {step === 'Büro' && <FileText size={16} />}
-                                                    {step === 'Einrichtung' && <Clock size={16} />}
-                                                    {step === 'Fertigung' && <Package size={16} />}
-                                                    {step === 'Lieferung' && <ArrowRight size={16} />}
-                                                    {step}
-                                                </button>
-                                            );
-                                        })}
+                                <div className="form-row-double">
+                                    <div className="form-row">
+                                        <label>Rohmaterial</label>
+                                        <input
+                                            type="text"
+                                            value={formData.raw_material}
+                                            onChange={(e) => handleFormChange('raw_material', e.target.value)}
+                                        />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <div className="form-row" style={{ flex: 1 }}>
+                                            <label>Zeit / St.</label>
+                                            <input
+                                                type="number"
+                                                value={formData.production_time}
+                                                onChange={(e) => handleFormChange('production_time', parseFloat(e.target.value) || 0)}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        <div className="form-row">
+                                            <label>Einheit</label>
+                                            <select
+                                                value={formData.production_time_unit}
+                                                onChange={(e) => handleFormChange('production_time_unit', e.target.value)}
+                                                style={{ width: '70px', borderRadius: '8px', border: '1px solid var(--color-border)', padding: '0 8px', height: '100%' }}
+                                            >
+                                                <option value="s">s</option>
+                                                <option value="m">m</option>
+                                                <option value="h">h</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
+
+
 
                                 {/* File Uploads */}
                                 <div className="file-upload-section">
@@ -431,7 +427,7 @@ const ArticleList = () => {
                                         </div>
 
                                         <div className="form-row">
-                                            <label>Kunden-ID</label>
+                                            <label>Kunde</label>
                                             <input
                                                 type="text"
                                                 value={formData.customer_id}
@@ -439,51 +435,41 @@ const ArticleList = () => {
                                             />
                                         </div>
 
-                                        <div className="form-row">
-                                            <label>Rohmaterial</label>
-                                            <input
-                                                type="text"
-                                                value={formData.raw_material}
-                                                onChange={(e) => handleFormChange('raw_material', e.target.value)}
-                                            />
-                                        </div>
-
-                                        {/* Work Steps Selection */}
-                                        <div className="form-row">
-                                            <label>Relevante Arbeitsgänge</label>
-                                            <div className="work-steps-selector">
-                                                {['Büro', 'Einrichtung', 'Fertigung', 'Lieferung'].map(step => {
-                                                    const isActive = formData.work_steps?.includes(step);
-                                                    const style = taskStyles[step];
-                                                    return (
-                                                        <button
-                                                            key={step}
-                                                            type="button"
-                                                            className={`step-toggle-btn ${isActive ? 'active' : ''}`}
-                                                            style={{
-                                                                backgroundColor: isActive ? style.activeBg : '#f8fafc',
-                                                                color: isActive ? style.activeColor : '#64748b',
-                                                                borderColor: isActive ? style.activeBg : '#e2e8f0',
-                                                                display: 'flex', alignItems: 'center', gap: '8px'
-                                                            }}
-                                                            onClick={() => {
-                                                                const current = formData.work_steps || [];
-                                                                const updated = current.includes(step)
-                                                                    ? current.filter(s => s !== step)
-                                                                    : [...current, step];
-                                                                handleFormChange('work_steps', updated);
-                                                            }}
-                                                        >
-                                                            {step === 'Büro' && <FileText size={16} />}
-                                                            {step === 'Einrichtung' && <Clock size={16} />}
-                                                            {step === 'Fertigung' && <Package size={16} />}
-                                                            {step === 'Lieferung' && <ArrowRight size={16} />}
-                                                            {step}
-                                                        </button>
-                                                    );
-                                                })}
+                                        <div className="form-row-double">
+                                            <div className="form-row">
+                                                <label>Rohmaterial</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.raw_material}
+                                                    onChange={(e) => handleFormChange('raw_material', e.target.value)}
+                                                />
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <div className="form-row" style={{ flex: 1 }}>
+                                                    <label>Zeit / St.</label>
+                                                    <input
+                                                        type="number"
+                                                        value={formData.production_time}
+                                                        onChange={(e) => handleFormChange('production_time', parseFloat(e.target.value) || 0)}
+                                                        placeholder="0"
+                                                    />
+                                                </div>
+                                                <div className="form-row">
+                                                    <label>Einheit</label>
+                                                    <select
+                                                        value={formData.production_time_unit}
+                                                        onChange={(e) => handleFormChange('production_time_unit', e.target.value)}
+                                                        style={{ width: '70px', borderRadius: '8px', border: '1px solid var(--color-border)', padding: '0 8px', height: '100%' }}
+                                                    >
+                                                        <option value="s">s</option>
+                                                        <option value="m">m</option>
+                                                        <option value="h">h</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
+
+
 
                                         {/* File Uploads */}
                                         <div className="file-upload-section">
@@ -1184,9 +1170,9 @@ const ArticleList = () => {
                 }
                 .cancel-btn {
                     flex: 1;
-                    background: transparent;
-                    color: var(--color-text-muted);
-                    border: 1px solid var(--color-border);
+                    background: #ef4444;
+                    color: white;
+                    border: none;
                     padding: 10px;
                     border-radius: 8px;
                     font-weight: 600;
@@ -1195,6 +1181,10 @@ const ArticleList = () => {
                     align-items: center;
                     justify-content: center;
                     gap: 8px;
+                    transition: all 0.2s;
+                }
+                .cancel-btn:hover {
+                    background: #dc2626;
                 }
                 .create-btn {
                     padding: 8px 16px;

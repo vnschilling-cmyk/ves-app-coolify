@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Plus, Trash2, GripVertical, Folder, FileText, ChevronRight, ChevronDown, Check, Save, FileSpreadsheet, ClipboardCheck, Settings2, Factory, Package, Wrench, ArrowUp, ArrowDown, ArrowRight, FileCheck, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, GripVertical, Folder, FileText, ChevronRight, ChevronDown, Check, Save, FileSpreadsheet, ClipboardCheck, Settings2, Factory, Package, Wrench, ArrowUp, ArrowDown, ArrowRight, FileCheck, RotateCcw, Truck, Calculator, Banknote, Hammer, Cpu, CreditCard, Euro, MapPin, Box } from 'lucide-react';
 import { getAppSetting, saveAppSetting } from '../services/storage';
 
 const WorkStepsManagement = ({ onBack }) => {
@@ -11,15 +11,64 @@ const WorkStepsManagement = ({ onBack }) => {
             type: 'group',
             isOpen: true,
             children: [
-                { id: 'offer', name: 'Angebot', type: 'step', minutes: 0, icon: 'FileSpreadsheet' },
-                { id: 'confirmation', name: 'Auftragsbestätigung', type: 'step', minutes: 0, icon: 'FileCheck' },
-                { id: 'order', name: 'Auftrag', type: 'step', minutes: 0, icon: 'ClipboardCheck' },
-                { id: 'delivery_note', name: 'Lieferschein', type: 'step', minutes: 0, icon: 'FileText' },
+                { id: 'offer', name: 'Angebot', type: 'step', minutes: 0, timeUnit: 'm', icon: 'FileSpreadsheet', selectedMode: 'manual' },
+                { id: 'confirmation', name: 'Auftragsbestätigung', type: 'step', minutes: 0, timeUnit: 'm', icon: 'FileCheck', selectedMode: 'manual' },
+                { id: 'order', name: 'Auftrag', type: 'step', minutes: 0, timeUnit: 'm', icon: 'ClipboardCheck', selectedMode: 'manual' },
+                { id: 'delivery_note', name: 'Lieferschein', type: 'step', minutes: 0, timeUnit: 'm', icon: 'FileText', selectedMode: 'manual' },
             ]
         },
-        { id: 'prep', name: 'Vorbereitung', type: 'step', minutes: 0, icon: 'Settings2' },
-        { id: 'prod', name: 'Fertigung', type: 'step', minutes: 0, icon: 'Factory' },
-        { id: 'delivery', name: 'Lieferung', type: 'step', minutes: 0, icon: 'Package' },
+        { id: 'prep', name: 'Vorbereitung', type: 'step', minutes: 0, timeUnit: 'm', icon: 'Settings2', selectedMode: 'manual' },
+        { id: 'prod', name: 'Fertigung', type: 'step', minutes: 0, timeUnit: 'm', icon: 'Factory', selectedMode: 'manual' },
+        { id: 'delivery', name: 'Lieferung', type: 'step', minutes: 0, timeUnit: 'm', icon: 'Package', selectedMode: 'delivery_company' },
+    ];
+
+    const STEP_OPTIONS = {
+        'delivery': [
+            { id: 'delivery_company', label: 'An Firma' },
+            { id: 'delivery_employee', label: 'An MA' },
+            { id: 'pickup_employee', label: 'Abholung' },
+            { id: 'stopwatch', label: 'Stoppuhr' }
+        ],
+        'default': [
+            { id: 'manual', label: 'Zeitvorgabe' },
+            { id: 'stopwatch', label: 'Stoppuhr' }
+        ]
+    };
+
+    // Available Icons for Selection
+    const AVAILABLE_ICONS = [
+        { id: 'Wrench', icon: Wrench, label: 'Standard' },
+        { id: 'Settings2', icon: Settings2, label: 'Einstellungen' },
+        { id: 'Factory', icon: Factory, label: 'Fabrik' },
+        { id: 'Hammer', icon: Hammer, label: 'Hammer' },
+        { id: 'Cpu', icon: Cpu, label: 'CNC' },
+        { id: 'Package', icon: Package, label: 'Paket' },
+        { id: 'Box', icon: Box, label: 'Box' },
+        { id: 'Truck', icon: Truck, label: 'LKW' },
+        { id: 'MapPin', icon: MapPin, label: 'Ort' },
+        { id: 'FileSpreadsheet', icon: FileSpreadsheet, label: 'Tabelle' },
+        { id: 'FileText', icon: FileText, label: 'Dokument' },
+        { id: 'FileCheck', icon: FileCheck, label: 'Check' },
+        { id: 'ClipboardCheck', icon: ClipboardCheck, label: 'Auftrag' },
+        { id: 'Calculator', icon: Calculator, label: 'Rechner' },
+        { id: 'Banknote', icon: Banknote, label: 'Geld' },
+        { id: 'Euro', icon: Euro, label: 'Euro' },
+        { id: 'CreditCard', icon: CreditCard, label: 'Karte' },
+    ];
+
+    const AVAILABLE_COLORS = [
+        '#64748b', // Slate (Default)
+        '#ef4444', // Red
+        '#f97316', // Orange
+        '#f59e0b', // Amber
+        '#84cc16', // Lime
+        '#10b981', // Emerald
+        '#06b6d4', // Cyan
+        '#3b82f6', // Blue
+        '#6366f1', // Indigo
+        '#8b5cf6', // Violet
+        '#d946ef', // Fuchsia
+        '#f43f5e', // Rose
     ];
 
     // Icon mapping for work steps
@@ -32,6 +81,15 @@ const WorkStepsManagement = ({ onBack }) => {
         'FileText': FileText,
         'Wrench': Wrench,
         'FileCheck': FileCheck,
+        'Truck': Truck,
+        'Calculator': Calculator,
+        'Banknote': Banknote,
+        'Hammer': Hammer,
+        'Cpu': Cpu,
+        'CreditCard': CreditCard,
+        'Euro': Euro,
+        'MapPin': MapPin,
+        'Box': Box
     };
 
     const STEP_COLORS = {
@@ -49,8 +107,8 @@ const WorkStepsManagement = ({ onBack }) => {
         return STEP_ICONS[iconName] || Wrench;
     };
 
-    const getStepColor = (iconName) => {
-        return STEP_COLORS[iconName] || 'var(--color-primary)';
+    const getStepColor = (color) => {
+        return color || '#64748b'; // Default to slate if no color set
     };
 
     const [steps, setSteps] = useState(DEFAULT_STEPS);
@@ -64,47 +122,81 @@ const WorkStepsManagement = ({ onBack }) => {
 
     const loadSteps = async () => {
         setLoading(true);
-        const data = await getAppSetting('work_steps_config', DEFAULT_STEPS);
-        if (data) {
-            // Ensure all steps have icons based on their id
-            const ICON_MAP = {
-                'offer': 'FileSpreadsheet',
-                'confirmation': 'FileCheck',
-                'order': 'ClipboardCheck',
-                'delivery_note': 'FileText',
-                'prep': 'Settings2',
-                'prod': 'Factory',
-                'delivery': 'Package'
-            };
-            const enrichedData = data.map(step => {
-                const getIconForStep = (s) => {
-                    if (s.icon && s.icon !== 'Wrench') return s.icon;
-                    if (ICON_MAP[s.id]) return ICON_MAP[s.id];
-                    // Name-based fallback for existing items
-                    if (s.name === 'Auftragsbestätigung') return 'FileCheck';
-                    if (s.name === 'Angebot') return 'FileSpreadsheet';
-                    if (s.name === 'Auftrag') return 'ClipboardCheck';
-                    if (s.name === 'Lieferschein') return 'FileText';
-                    if (s.name === 'Vorbereitung') return 'Settings2';
-                    if (s.name === 'Fertigung') return 'Factory';
-                    if (s.name === 'Lieferung') return 'Package';
-                    return 'Wrench';
+        try {
+            const data = await getAppSetting('work_steps_config', DEFAULT_STEPS);
+            if (data) {
+                // ... same enrichment logic ...
+                const ICON_MAP = {
+                    'offer': 'FileSpreadsheet',
+                    'confirmation': 'FileCheck',
+                    'order': 'ClipboardCheck',
+                    'delivery_note': 'FileText',
+                    'prep': 'Settings2',
+                    'prod': 'Factory',
+                    'delivery': 'Package'
                 };
+                const enrichedData = data.map(step => {
+                    const getIconForStep = (s) => {
+                        if (s.icon && s.icon !== 'Wrench') return s.icon;
+                        if (ICON_MAP[s.id]) return ICON_MAP[s.id];
+                        // Name-based fallback for existing items
+                        if (s.name === 'Auftragsbestätigung') return 'FileCheck';
+                        if (s.name === 'Angebot') return 'FileSpreadsheet';
+                        if (s.name === 'Auftrag') return 'ClipboardCheck';
+                        if (s.name === 'Lieferschein') return 'FileText';
+                        if (s.name === 'Vorbereitung') return 'Settings2';
+                        if (s.name === 'Fertigung') return 'Factory';
+                        if (s.name === 'Lieferung') return 'Package';
+                        return 'Wrench';
+                    };
 
-                if (step.type === 'group' && step.children) {
+                    if (step.type === 'group' && step.children) {
+                        return {
+                            ...step,
+                            children: step.children.map(child => {
+                                const initialModeSettings = child.modeSettings || {};
+                                if (!child.modeSettings && (child.minutes || child.timeUnit)) {
+                                    initialModeSettings['manual'] = {
+                                        minutes: child.minutes || 0,
+                                        timeUnit: child.timeUnit || 'm'
+                                    };
+                                }
+                                return {
+                                    ...child,
+                                    icon: getIconForStep(child),
+                                    color: child.color || (STEP_COLORS[getIconForStep(child)] || '#64748b'),
+                                    selectedMode: child.selectedMode || 'manual',
+                                    modeSettings: initialModeSettings
+                                };
+                            })
+                        };
+                    }
+
+                    const initialModeSettings = step.modeSettings || {};
+                    if (!step.modeSettings && (step.minutes || step.timeUnit)) {
+                        initialModeSettings['manual'] = {
+                            minutes: step.minutes || 0,
+                            timeUnit: step.timeUnit || 'm'
+                        };
+                    }
+
                     return {
                         ...step,
-                        children: step.children.map(child => ({
-                            ...child,
-                            icon: getIconForStep(child)
-                        }))
+                        icon: getIconForStep(step),
+                        color: step.color || (STEP_COLORS[getIconForStep(step)] || '#64748b'),
+                        selectedMode: step.selectedMode || (step.id === 'delivery' ? 'delivery_company' : 'manual'),
+                        modeSettings: initialModeSettings
                     };
-                }
-                return { ...step, icon: getIconForStep(step) };
-            });
-            setSteps(enrichedData);
+                });
+                setSteps(enrichedData);
+            }
+        } catch (error) {
+            console.error("Error loading steps:", error);
+            // Fallback to DEFAULT_STEPS if something goes wrong
+            setSteps(DEFAULT_STEPS);
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     const handleSave = async () => {
@@ -140,14 +232,112 @@ const WorkStepsManagement = ({ onBack }) => {
         }
     };
 
-    const handleMinutesChange = (id, minutes, parentId = null) => {
+    const handleMinutesChange = (id, minutes, targetMode, parentId = null) => {
+        const newMinutes = parseInt(minutes) || 0;
+        if (parentId) {
+            setSteps(steps.map(step => {
+                if (step.id === parentId) {
+                    return {
+                        ...step,
+                        children: step.children.map(child => {
+                            if (child.id === id) {
+                                // Use provided targetMode or fallback to current (though UI now provides it)
+                                const modeToUpdate = targetMode || child.selectedMode;
+                                return {
+                                    ...child,
+                                    modeSettings: {
+                                        ...child.modeSettings,
+                                        [modeToUpdate]: {
+                                            ...(child.modeSettings?.[modeToUpdate] || {}),
+                                            minutes: newMinutes,
+                                            timeUnit: child.modeSettings?.[modeToUpdate]?.timeUnit || 'm' // Preserve unit or default
+                                        }
+                                    }
+                                };
+                            }
+                            return child;
+                        })
+                    };
+                }
+                return step;
+            }));
+        } else {
+            setSteps(steps.map(step => {
+                if (step.id === id) {
+                    const modeToUpdate = targetMode || step.selectedMode;
+                    return {
+                        ...step,
+                        modeSettings: {
+                            ...step.modeSettings,
+                            [modeToUpdate]: {
+                                ...(step.modeSettings?.[modeToUpdate] || {}),
+                                minutes: newMinutes,
+                                timeUnit: step.modeSettings?.[modeToUpdate]?.timeUnit || 'm'
+                            }
+                        }
+                    };
+                }
+                return step;
+            }));
+        }
+    };
+
+    const handleTimeUnitChange = (id, unit, targetMode, parentId = null) => {
+        if (parentId) {
+            setSteps(steps.map(step => {
+                if (step.id === parentId) {
+                    return {
+                        ...step,
+                        children: step.children.map(child => {
+                            if (child.id === id) {
+                                const modeToUpdate = targetMode || child.selectedMode;
+                                return {
+                                    ...child,
+                                    modeSettings: {
+                                        ...child.modeSettings,
+                                        [modeToUpdate]: {
+                                            ...(child.modeSettings?.[modeToUpdate] || {}),
+                                            minutes: child.modeSettings?.[modeToUpdate]?.minutes || 0, // Preserve minutes or default
+                                            timeUnit: unit
+                                        }
+                                    }
+                                };
+                            }
+                            return child;
+                        })
+                    };
+                }
+                return step;
+            }));
+        } else {
+            setSteps(steps.map(step => {
+                if (step.id === id) {
+                    const modeToUpdate = targetMode || step.selectedMode;
+                    return {
+                        ...step,
+                        modeSettings: {
+                            ...step.modeSettings,
+                            [modeToUpdate]: {
+                                ...(step.modeSettings?.[modeToUpdate] || {}),
+                                minutes: step.modeSettings?.[modeToUpdate]?.minutes || 0,
+                                timeUnit: unit
+                            }
+                        }
+                    };
+                }
+                return step;
+            }));
+        }
+    };
+
+    const handleIconChange = (id, newIconName, parentId = null) => {
         if (parentId) {
             setSteps(steps.map(step => {
                 if (step.id === parentId) {
                     return {
                         ...step,
                         children: step.children.map(child =>
-                            child.id === id ? { ...child, minutes: parseInt(minutes) || 0 } : child
+                            child.id === id ? { ...child, icon: newIconName } : child
                         )
                     };
                 }
@@ -155,7 +345,47 @@ const WorkStepsManagement = ({ onBack }) => {
             }));
         } else {
             setSteps(steps.map(step =>
-                step.id === id ? { ...step, minutes: parseInt(minutes) || 0 } : step
+                step.id === id ? { ...step, icon: newIconName } : step
+            ));
+        }
+    };
+
+    const handleColorChange = (id, newColor, parentId = null) => {
+        if (parentId) {
+            setSteps(steps.map(step => {
+                if (step.id === parentId) {
+                    return {
+                        ...step,
+                        children: step.children.map(child =>
+                            child.id === id ? { ...child, color: newColor } : child
+                        )
+                    };
+                }
+                return step;
+            }));
+        } else {
+            setSteps(steps.map(step =>
+                step.id === id ? { ...step, color: newColor } : step
+            ));
+        }
+    };
+
+    const handleModeChange = (id, mode, parentId = null) => {
+        if (parentId) {
+            setSteps(steps.map(step => {
+                if (step.id === parentId) {
+                    return {
+                        ...step,
+                        children: step.children.map(child =>
+                            child.id === id ? { ...child, selectedMode: mode } : child
+                        )
+                    };
+                }
+                return step;
+            }));
+        } else {
+            setSteps(steps.map(step =>
+                step.id === id ? { ...step, selectedMode: mode } : step
             ));
         }
     };
@@ -443,6 +673,26 @@ const WorkStepsManagement = ({ onBack }) => {
         ));
     };
 
+    const toggleSettings = (id, parentId = null) => {
+        if (parentId) {
+            setSteps(steps.map(step => {
+                if (step.id === parentId) {
+                    return {
+                        ...step,
+                        children: step.children.map(child =>
+                            child.id === id ? { ...child, settingsOpen: !child.settingsOpen } : child
+                        )
+                    };
+                }
+                return step;
+            }));
+        } else {
+            setSteps(steps.map(step =>
+                step.id === id ? { ...step, settingsOpen: !step.settingsOpen } : step
+            ));
+        }
+    };
+
     const resetSteps = () => {
         if (!confirm('Möchten Sie alle Arbeitsgänge auf die Standardwerte zurücksetzen? Alle Änderungen gehen verloren.')) return;
         setSteps(DEFAULT_STEPS);
@@ -501,80 +751,289 @@ const WorkStepsManagement = ({ onBack }) => {
                                     {step.isOpen && (
                                         <div className="group-children">
                                             {step.children.map((child, childIndex) => (
-                                                <div
-                                                    key={child.id}
-                                                    className={`step-row child-row ${dragOverItem?.id === child.id ? 'drag-over' : ''}`}
-                                                    draggable="true"
-                                                    onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, child, step.id); }}
-                                                    onDragOver={(e) => { e.stopPropagation(); handleDragOver(e, child.id, step.id, 'step'); }}
-                                                    onDrop={(e) => { e.stopPropagation(); handleDrop(e, child.id, step.id, 'step'); }}
-                                                    style={{ paddingLeft: '28px' }}
-                                                >
-                                                    {(() => {
-                                                        const StepIcon = getStepIcon(child.icon);
-                                                        const color = getStepColor(child.icon);
-                                                        return <StepIcon size={18} className="icon-step" style={{ color: color }} />;
-                                                    })()}
-                                                    <input
-                                                        type="text"
-                                                        value={child.name}
-                                                        onChange={(e) => handleNameChange(child.id, e.target.value, step.id)}
-                                                        className="step-name-input"
-                                                        placeholder="Name"
-                                                    />
-                                                    <div className="minutes-wrapper">
-                                                        <input
-                                                            type="number"
-                                                            value={child.minutes}
-                                                            onChange={(e) => handleMinutesChange(child.id, e.target.value, step.id)}
-                                                            className="step-minutes-input"
-                                                            min="0"
-                                                        />
-                                                        <span className="unit">min</span>
+                                                <div key={child.id} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                                    <div
+                                                        className={`step-row child-row ${dragOverItem?.id === child.id ? 'drag-over' : ''}`}
+                                                        draggable="true"
+                                                        onDragStart={(e) => { e.stopPropagation(); handleDragStart(e, child, step.id); }}
+                                                        onDragOver={(e) => { e.stopPropagation(); handleDragOver(e, child.id, step.id, 'step'); }}
+                                                        onDrop={(e) => { e.stopPropagation(); handleDrop(e, child.id, step.id, 'step'); }}
+                                                        style={{ paddingLeft: '28px' }}
+                                                    >
+                                                        {(() => {
+                                                            const StepIcon = getStepIcon(child.icon);
+                                                            const stepColor = getStepColor(child.color);
+                                                            return (
+                                                                <>
+                                                                    <StepIcon size={18} className="icon-step" style={{ color: stepColor }} />
+                                                                    <input
+                                                                        type="text"
+                                                                        value={child.name}
+                                                                        onChange={(e) => handleNameChange(child.id, e.target.value, step.id)}
+                                                                        className="step-name-input"
+                                                                        placeholder="Name"
+                                                                        style={{ color: stepColor, fontWeight: 600 }}
+                                                                    />
+                                                                </>
+                                                            );
+                                                        })()}
+
+                                                        <div className="row-actions">
+                                                            <button
+                                                                className={`action-btn settings-toggle ${child.settingsOpen ? 'active' : ''}`}
+                                                                title="Einstellungen"
+                                                                onClick={(e) => { e.stopPropagation(); toggleSettings(child.id, step.id); }}
+                                                            >
+                                                                <Settings2 size={28} />
+                                                            </button>
+                                                            <button className="action-btn delete" title="Löschen" onClick={(e) => { e.stopPropagation(); handleDelete(child.id, step.id); }}>
+                                                                <Trash2 size={28} />
+                                                            </button>
+                                                            <div className="drag-handle" style={{ cursor: 'grab', padding: '0 4px', display: 'flex', color: '#cbd5e1' }}><GripVertical size={28} /></div>
+                                                        </div>
                                                     </div>
-                                                    <div className="row-actions">
-                                                        <div className="drag-handle" style={{ cursor: 'grab', padding: '0 4px', display: 'flex', color: '#cbd5e1' }}><GripVertical size={16} /></div>
-                                                        {/* Arrows Removed */}
-                                                        <button className="action-btn delete" title="Löschen" onClick={(e) => { e.stopPropagation(); handleDelete(child.id, step.id); }}>
-                                                            <Trash2 size={16} />
-                                                        </button>
-                                                    </div>
+                                                    {child.settingsOpen && (
+                                                        <div className="settings-panel" style={{ marginLeft: '28px' }}>
+                                                            <div className="setting-item">
+                                                                <label style={{ marginBottom: '4px' }}>Modus</label>
+                                                                <div className="radio-group">
+                                                                    {(STEP_OPTIONS[child.id] || STEP_OPTIONS['default']).map(option => (
+                                                                        <label key={option.id} className="radio-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                                <input
+                                                                                    type="radio"
+                                                                                    name={`mode-${child.id}`}
+                                                                                    value={option.id}
+                                                                                    checked={child.selectedMode === option.id}
+                                                                                    onChange={(e) => handleModeChange(child.id, e.target.value, step.id)}
+                                                                                />
+                                                                                <span style={{ marginLeft: '8px' }}>{option.label}</span>
+                                                                            </div>
+                                                                            {['manual', 'delivery_company', 'delivery_employee', 'pickup_employee'].includes(option.id) && (
+                                                                                <div className="inline-time-input" onClick={(e) => e.stopPropagation()}>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        value={child.modeSettings?.[option.id]?.minutes || 0}
+                                                                                        onChange={(e) => handleMinutesChange(child.id, e.target.value, option.id, step.id)}
+                                                                                        min="0"
+                                                                                        style={{ width: '50px', marginLeft: '8px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                                                                    />
+                                                                                    <select
+                                                                                        value={child.modeSettings?.[option.id]?.timeUnit || 'm'}
+                                                                                        onChange={(e) => handleTimeUnitChange(child.id, e.target.value, option.id, step.id)}
+                                                                                        style={{ marginLeft: '4px', padding: '2px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                                                                    >
+                                                                                        <option value="s">s</option>
+                                                                                        <option value="m">m</option>
+                                                                                        <option value="h">h</option>
+                                                                                    </select>
+                                                                                </div>
+                                                                            )}
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="setting-item">
+                                                                <label style={{ marginBottom: '8px' }}>Icon</label>
+                                                                <div className="icon-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                                    {AVAILABLE_ICONS.map(iconOption => {
+                                                                        const IconComp = iconOption.icon;
+                                                                        const isSelected = child.icon === iconOption.id;
+                                                                        const iconColor = isSelected ? 'var(--color-primary)' : '#64748b';
+                                                                        return (
+                                                                            <button
+                                                                                key={iconOption.id}
+                                                                                onClick={() => handleIconChange(child.id, iconOption.id, step.id)}
+                                                                                className={`icon-select-btn ${isSelected ? 'active' : ''}`}
+                                                                                style={{
+                                                                                    width: '36px',
+                                                                                    height: '36px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    border: isSelected ? '2px solid var(--color-primary)' : '1px solid #e2e8f0',
+                                                                                    borderRadius: '8px',
+                                                                                    background: isSelected ? '#eff6ff' : 'white',
+                                                                                    cursor: 'pointer',
+                                                                                    flexShrink: 0,
+                                                                                    padding: 0
+                                                                                }}
+                                                                                title={iconOption.label}
+                                                                            >
+                                                                                {IconComp && <IconComp size={20} color={iconColor} style={{ flexShrink: 0 }} />}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="setting-item">
+                                                                <label style={{ marginBottom: '8px' }}>Farbe</label>
+                                                                <div className="color-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                                    {AVAILABLE_COLORS.map(color => (
+                                                                        <button
+                                                                            key={color}
+                                                                            onClick={() => handleColorChange(child.id, color, step.id)}
+                                                                            style={{
+                                                                                width: '28px',
+                                                                                height: '28px',
+                                                                                display: 'block',
+                                                                                borderRadius: '6px',
+                                                                                background: color,
+                                                                                border: child.color === color ? '2px solid white' : 'none',
+                                                                                boxShadow: child.color === color ? '0 0 0 2px var(--color-primary)' : 'none',
+                                                                                cursor: 'pointer',
+                                                                                padding: 0,
+                                                                                flexShrink: 0
+                                                                            }}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
                                     )}
                                 </div>
                             ) : (
-                                <div className="step-row top-level-row" style={{ paddingLeft: '4px' }}>
-                                    {(() => {
-                                        const StepIcon = getStepIcon(step.icon);
-                                        const color = getStepColor(step.icon);
-                                        return <StepIcon size={20} className="icon-step" style={{ color: color }} />;
-                                    })()}
-                                    <input
-                                        type="text"
-                                        value={step.name}
-                                        onChange={(e) => handleNameChange(step.id, e.target.value)}
-                                        className="step-name-input"
-                                        placeholder="Name"
-                                    />
-                                    <div className="minutes-wrapper">
-                                        <input
-                                            type="number"
-                                            value={step.minutes}
-                                            onChange={(e) => handleMinutesChange(step.id, e.target.value)}
-                                            className="step-minutes-input"
-                                            min="0"
-                                        />
-                                        <span className="unit">min</span>
+                                <div className="step-item-wrapper" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                                    <div className="step-row top-level-row" style={{ paddingLeft: '4px' }}>
+                                        {(() => {
+                                            const StepIcon = getStepIcon(step.icon);
+                                            const stepColor = getStepColor(step.color);
+                                            return (
+                                                <>
+                                                    <StepIcon size={20} className="icon-step" style={{ color: stepColor }} />
+                                                    <input
+                                                        type="text"
+                                                        value={step.name}
+                                                        onChange={(e) => handleNameChange(step.id, e.target.value)}
+                                                        className="step-name-input"
+                                                        placeholder="Name"
+                                                        style={{ color: stepColor, fontWeight: 600 }}
+                                                    />
+                                                </>
+                                            );
+                                        })()}
+
+                                        <div className="row-actions">
+                                            <button
+                                                className={`action-btn settings-toggle ${step.settingsOpen ? 'active' : ''}`}
+                                                title="Einstellungen"
+                                                onClick={(e) => { e.stopPropagation(); toggleSettings(step.id); }}
+                                            >
+                                                <Settings2 size={28} />
+                                            </button>
+                                            <button className="action-btn delete" title="Löschen" onClick={(e) => { e.stopPropagation(); handleDelete(step.id); }}>
+                                                <Trash2 size={28} />
+                                            </button>
+                                            <div className="drag-handle" style={{ cursor: 'grab', padding: '0 4px', display: 'flex', color: '#cbd5e1' }}><GripVertical size={28} /></div>
+                                        </div>
                                     </div>
-                                    <div className="row-actions">
-                                        <div className="drag-handle" style={{ cursor: 'grab', padding: '0 4px', display: 'flex', color: '#cbd5e1' }}><GripVertical size={16} /></div>
-                                        {/* Arrows Removed */}
-                                        <button className="action-btn delete" title="Löschen" onClick={(e) => { e.stopPropagation(); handleDelete(step.id); }}>
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
+                                    {step.settingsOpen && (
+                                        <div className="settings-panel" style={{ marginLeft: '4px' }}>
+                                            <div className="setting-item">
+                                                <label style={{ marginBottom: '4px' }}>Modus</label>
+                                                <div className="radio-group">
+                                                    {(STEP_OPTIONS[step.id] || STEP_OPTIONS['default']).map(option => (
+                                                        <label key={option.id} className="radio-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`mode-${step.id}`}
+                                                                    value={option.id}
+                                                                    checked={step.selectedMode === option.id}
+                                                                    onChange={(e) => handleModeChange(step.id, e.target.value)}
+                                                                />
+                                                                <span style={{ marginLeft: '8px' }}>{option.label}</span>
+                                                            </div>
+                                                            {['manual', 'delivery_company', 'delivery_employee', 'pickup_employee'].includes(option.id) && (
+                                                                <div className="inline-time-input" onClick={(e) => e.stopPropagation()}>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={step.modeSettings?.[option.id]?.minutes || 0}
+                                                                        onChange={(e) => handleMinutesChange(step.id, e.target.value, option.id)}
+                                                                        min="0"
+                                                                        style={{ width: '50px', marginLeft: '8px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                                                    />
+                                                                    <select
+                                                                        value={step.modeSettings?.[option.id]?.timeUnit || 'm'}
+                                                                        onChange={(e) => handleTimeUnitChange(step.id, e.target.value, option.id)}
+                                                                        style={{ marginLeft: '4px', padding: '2px', borderRadius: '4px', border: '1px solid #cbd5e1' }}
+                                                                    >
+                                                                        <option value="s">s</option>
+                                                                        <option value="m">m</option>
+                                                                        <option value="h">h</option>
+                                                                    </select>
+                                                                </div>
+                                                            )}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <div className="setting-item">
+                                                <label style={{ marginBottom: '8px' }}>Icon</label>
+                                                <div className="icon-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                    {AVAILABLE_ICONS.map(iconOption => {
+                                                        const IconComp = iconOption.icon;
+                                                        const isSelected = step.icon === iconOption.id;
+                                                        const iconColor = isSelected ? 'var(--color-primary)' : '#64748b';
+                                                        return (
+                                                            <button
+                                                                key={iconOption.id}
+                                                                onClick={() => handleIconChange(step.id, iconOption.id)}
+                                                                className={`icon-select-btn ${isSelected ? 'active' : ''}`}
+                                                                style={{
+                                                                    width: '36px',
+                                                                    height: '36px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    border: isSelected ? '2px solid var(--color-primary)' : '1px solid #e2e8f0',
+                                                                    borderRadius: '8px',
+                                                                    background: isSelected ? '#eff6ff' : 'white',
+                                                                    cursor: 'pointer',
+                                                                    flexShrink: 0,
+                                                                    padding: 0
+                                                                }}
+                                                                title={iconOption.label}
+                                                            >
+                                                                {IconComp && <IconComp size={20} color={iconColor} style={{ flexShrink: 0 }} />}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            <div className="setting-item">
+                                                <label style={{ marginBottom: '8px' }}>Farbe</label>
+                                                <div className="color-grid" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                    {AVAILABLE_COLORS.map(color => (
+                                                        <button
+                                                            key={color}
+                                                            onClick={() => handleColorChange(step.id, color)}
+                                                            style={{
+                                                                width: '28px',
+                                                                height: '28px',
+                                                                display: 'block',
+                                                                borderRadius: '6px',
+                                                                background: color,
+                                                                border: step.color === color ? '2px solid white' : 'none',
+                                                                boxShadow: step.color === color ? '0 0 0 2px var(--color-primary)' : 'none',
+                                                                cursor: 'pointer',
+                                                                padding: 0,
+                                                                flexShrink: 0
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -651,8 +1110,10 @@ const WorkStepsManagement = ({ onBack }) => {
                     align-items: center; 
                     justify-content: center; 
                     gap: 8px;
-                    width: calc(100% - 16px);
-                    margin: 0 8px 12px 8px;
+                    justify-content: center; 
+                    gap: 8px;
+                    width: 100%;
+                    margin: 0 0 12px 0;
                     padding: 10px 12px;
                     background: var(--color-primary);
                     border: none;
@@ -676,7 +1137,7 @@ const WorkStepsManagement = ({ onBack }) => {
                     flex: 1;
                     overflow-y: auto;
                     overflow-x: hidden;
-                    padding: 0 8px 16px 8px;
+                    padding: 0 0 16px 0;
                     width: 100%;
                     max-width: 100%;
                     box-sizing: border-box;
@@ -688,8 +1149,8 @@ const WorkStepsManagement = ({ onBack }) => {
 
                 .actions-footer {
                     padding: 10px 8px;
-                    border-top: 1px solid var(--color-border);
-                    background: white;
+                    border-top: none;
+                    background: transparent;
                     flex-shrink: 0;
                     width: 100%;
                     max-width: 100%;
@@ -718,13 +1179,99 @@ const WorkStepsManagement = ({ onBack }) => {
                     border-color: #3b82f6;
                 }
 
+                
+                /* Settings Panel Styles */
+                .settings-panel {
+                    background: #f8fafc;
+                    border: 1px solid var(--color-border);
+                    border-top: none;
+                    border-radius: 0 0 8px 8px;
+                    padding: 12px;
+                    margin-top: -4px; /* Connect to row above */
+                    margin-bottom: 8px;
+                    width: calc(100% - 28px); /* Account for margin-left if needed, dynamic? */
+                    width: auto;
+                    margin-right: 0;
+                    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+                }
+                
+                .step-row.child-row + .settings-panel {
+                     /* Specific adjustment for child row panels */
+                     margin-bottom: 4px;
+                }
+
+                .setting-item {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                .setting-item label {
+                    font-size: 0.8rem;
+                    color: var(--color-text-muted);
+                    font-weight: 500;
+                }
+                .radio-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 6px;
+                    margin-bottom: 8px;
+                }
+                .radio-label {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.9rem;
+                    color: var(--color-text-main);
+                    cursor: pointer;
+                }
+                .radio-label input[type="radio"] {
+                    accent-color: var(--color-primary);
+                    width: 16px; 
+                    height: 16px;
+                }
+                .input-with-unit {
+                    display: flex;
+                    align-items: center;
+                    background: white;
+                    border: 1px solid var(--color-border);
+                    border-radius: 6px;
+                    overflow: hidden;
+                    width: 120px;
+                }
+                .input-with-unit input {
+                    border: none;
+                    padding: 6px 8px;
+                    width: 100%;
+                    font-size: 0.9rem;
+                    outline: none;
+                }
+                .input-with-unit span {
+                    padding: 0 8px;
+                    color: var(--color-text-muted);
+                    font-size: 0.85rem;
+                    background: #f1f5f9;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    border-left: 1px solid var(--color-border);
+                }
+                
+                .action-btn.settings-toggle {
+                    margin-right: 4px;
+                    color: var(--color-text-light);
+                }
+                .action-btn.settings-toggle:hover, .action-btn.settings-toggle.active {
+                    background: #eff6ff;
+                    color: var(--color-primary);
+                }
+
                 .step-row {
                     display: flex;
                     align-items: center;
                     gap: 2px;
                     background: white;
                     padding: 0; 
-                    padding-right: 4px; 
+                    padding-right: 0; /* Maximize width */
                     border: 1px solid var(--color-border);
                     border-radius: 8px;
                     transition: border 0.2s;
@@ -733,6 +1280,8 @@ const WorkStepsManagement = ({ onBack }) => {
                     box-sizing: border-box;
                     min-height: 40px;
                     overflow: hidden;
+                    position: relative; 
+                    z-index: 2; /* Keep above settings panel */
                 }
                 .step-row:focus-within {
                     border-color: var(--color-primary);
@@ -741,60 +1290,73 @@ const WorkStepsManagement = ({ onBack }) => {
                 
                 /* Full height drag handle - White Background */
                 .step-row .drag-handle {
-                    align-self: stretch;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    background: white;
-                    border-right: 1px solid #f1f5f9; 
-                    width: 28px;
-                    min-width: 28px;
-                    cursor: grab;
-                    color: #94a3b8 !important; 
-                    margin-right: 4px;
-                    flex-shrink: 0;
-                }
-                .step-row .drag-handle:hover {
-                    background: #f8fafc;
-                    color: #64748b !important;
+                    /* Defined below in block */
                 }
                 
                 .step-row .row-actions { 
                     opacity: 1; 
-                    margin-left: 0; /* reliance on flex grow */
+                    margin-left: 0; 
                     flex-shrink: 0;
                     display: flex;
                     align-items: center;
-                    min-width: 0;
+                    height: 100%;
                 }
 
                 .row-actions {
-                    display: flex; gap: 1px; flex-shrink: 0;
+                    display: flex; 
+                    align-items: center;
+                    height: 100%;
                 }
+                
                 .action-btn {
-                    padding: 2px; 
-                    background: white;
+                    width: 56px;
+                    height: 100%; /* Full height of row */
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: transparent;
                     border: none;
-                    cursor: pointer; color: #94a3b8; border-radius: 4px; display: flex;
+                    cursor: pointer; 
+                    color: #64748b; 
                     flex-shrink: 0;
-                    z-index: 10;
-                    position: relative;
+                    transition: background 0.2s, color 0.2s;
                 }
-                .action-btn:hover { background: #f1f5f9; color: #475569; }
+                .action-btn:hover { background: #f1f5f9; color: #334155; }
                 
                 /* Red delete button */
-                .action-btn.delete { color: #ef4444; }
+                .action-btn.delete { color: #ef4444; width: 60px; }
                 .action-btn.delete:hover { background: #fee2e2; }
                 
-                .action-btn.add-sub:hover { background: #dcfce7; color: #166534; }
-
+                /* Drag handle - now grouped with settings? No, it's the divider */
+                .step-row .drag-handle {
+                    align-self: stretch;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    background: transparent;
+                    border-left: 1px solid #e2e8f0; /* Border Left now */
+                    width: 44px;
+                    cursor: grab;
+                    color: #94a3b8;
+                    margin: 0;
+                }
+                .step-row .drag-handle:hover {
+                    color: #475569;
+                    background: #f8fafc;
+                }
+                
+                .action-btn.settings-toggle {
+                    width: 56px;
+                    color: #64748b;
+                    margin-right: 0;
+                }
+                
                 .group-header {
                     background: white; 
                     border-bottom: none;
                 }
-                /* Ensure drag handle in group header matches height */
                 .group-header .drag-handle {
-                    background: white; 
+                    background: transparent; 
                 }
 
                 .group-wrapper {
@@ -914,7 +1476,7 @@ const WorkStepsManagement = ({ onBack }) => {
                     .page-header h2 { font-size: 1.1rem; }
                 }
             `}</style>
-        </div>
+        </div >
     );
 };
 
