@@ -48,23 +48,47 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
     const processText = async (text) => {
         setIsProcessing(true);
         try {
-            // Dynamic Import
+            // Dynamic Import for Storage
+            const { getArticleByArticleId } = await import('../services/storage');
+
+            // Dynamic Import for PDF parsing
             const { parsePositionsFromText } = await import('../services/pdfService');
             const result = parsePositionsFromText(text);
 
             const showSuffix = result.positions.length > 1;
 
-            setPositions(result.positions.map((p, i) => ({
-                ...p,
-                temp_id: Math.random().toString(36).substr(2, 9),
-                id: result.globalOrderId
-                    ? (showSuffix ? `${result.globalOrderId}-${(i + 1).toString().padStart(2, '0')}` : result.globalOrderId)
-                    : p.id,
-                company: result.company || '',
-                contact_person: result.contact_person || '',
-                date: result.globalDate || new Date().toISOString().split('T')[0],
-                article_id: p.article_id || '' // Ensure this is mapped
-            })));
+            const enhancedPositions = await Promise.all(result.positions.map(async (p, i) => {
+                let description = p.description || '';
+
+                // Check if article exists in DB to override description
+                if (p.article_id) {
+                    try {
+                        const existingArticle = await getArticleByArticleId(p.article_id);
+                        if (existingArticle && existingArticle.name) {
+                            description = existingArticle.name;
+                        }
+                    } catch (err) {
+                        console.warn('Could not fetch article details for:', p.article_id);
+                    }
+                }
+
+                return {
+                    ...p,
+                    temp_id: Math.random().toString(36).substr(2, 9),
+                    id: result.globalOrderId
+                        ? (showSuffix ? `${result.globalOrderId}-${(i + 1).toString().padStart(2, '0')}` : result.globalOrderId)
+                        : p.id,
+                    company: result.company || '',
+                    contact_person: result.contact_person || '',
+                    date: result.globalDate || new Date().toISOString().split('T')[0],
+                    article_id: p.article_id || '',
+                    drawing_number: p.drawing_number || '',
+                    raw_material: p.raw_material || '',
+                    description: description
+                };
+            }));
+
+            setPositions(enhancedPositions);
 
             setStage('staging');
         } catch (error) {
@@ -123,6 +147,8 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
             contact_person: '',
             date: new Date().toISOString().split('T')[0],
             article_id: '',
+            drawing_number: '',
+            raw_material: '',
             raw: ''
         }]);
     };
@@ -140,7 +166,7 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
             // Dynamic import for article functions
             const { getArticleByArticleId, createArticle } = await import('../services/storage');
 
-            // 1. Collect unique article_ids and check for missing articles
+            // 1. Check for missing articles (Legacy check: Creates article if missing, but we store string in order)
             const uniqueArticleIds = [...new Set(positions.filter(p => p.article_id).map(p => p.article_id))];
             const missingArticles = [];
 
@@ -148,13 +174,19 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                 const existing = await getArticleByArticleId(artId);
                 if (!existing) {
                     const posData = positions.find(p => p.article_id === artId);
+
+                    // Safe calculation for unit price
+                    const totalValue = parseFloat(posData?.value) || 0;
+                    const quantity = parseFloat(posData?.quantity) || 1;
+                    const safeUnitPrice = quantity > 0 ? (totalValue / quantity) : 0;
+
                     missingArticles.push({
                         article_id: artId,
-                        description: posData?.description || '',
-                        unit_price: parseFloat(posData?.value || 0) / parseFloat(posData?.quantity || 1),
+                        description: posData?.description || 'Neu importierter Artikel',
+                        unit_price: isFinite(safeUnitPrice) ? safeUnitPrice : 0,
                         customer_id: posData?.company || '',
-                        drawing_number: '',
-                        raw_material: ''
+                        drawing_number: posData?.drawing_number || '',
+                        raw_material: posData?.raw_material || ''
                     });
                 }
             }
@@ -170,10 +202,21 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                     let createdCount = 0;
                     for (const artData of missingArticles) {
                         try {
-                            await createArticle(artData);
+                            // Use FormData to match ArticleList behavior
+                            // Use JSON payload (safer than FormData for no-file uploads)
+                            const payload = {
+                                article_id: artData.article_id,
+                                description: artData.description,
+                                unit_price: artData.unit_price || 0, // Ensure Number
+                                customer_id: artData.customer_id,
+                                drawing_number: artData.drawing_number,
+                                raw_material: artData.raw_material,
+                                work_steps: ['Büro', 'Einrichtung', 'Fertigung', 'Lieferung'] // Ensure Array
+                            };
+
+                            await createArticle(payload);
                             createdCount++;
                         } catch (err) {
-                            // Error is already shown by createArticle, continue with remaining
                             console.error('Failed to create article:', artData.article_id, err);
                         }
                     }
@@ -192,13 +235,13 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                 contact_person: p.contact_person,
                 date: p.date,
                 delivery_date: p.delivery_date || globalData.delivery_date,
-                article_id: p.article_id,
+                article_id: p.article_id, // Save the String!
                 user: ''
             }));
 
-            await saveOrders(ordersToSave);
-
+            await saveOrders(ordersToSave, file);
             await fetchOrders();
+            alert(`Erfolgreich importiert!${file ? '\nDas PDF wurde gespeichert.' : ''}`);
             onClose();
         } catch (error) {
             alert('Fehler beim Speichern: ' + error.message);
@@ -266,90 +309,117 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                             )}
 
                             {positions.map((pos, idx) => (
-                                <div key={pos.temp_id} className="position-row">
-                                    <div className="pos-actions">
-                                        <button onClick={() => deletePosition(pos.temp_id)} className="btn-delete-row"><Trash2 size={16} /></button>
+                                <div key={pos.temp_id} className="position-card">
+                                    {/* Delete Button - New Style */}
+                                    <button
+                                        onClick={() => deletePosition(pos.temp_id)}
+                                        className="corner-btn delete-corner"
+                                        title="Position entfernen"
+                                    >
+                                        <Trash2 size={24} />
+                                    </button>
+
+                                    {/* Card Header: Order ID */}
+                                    <div className="card-header-row">
+                                        <div className="field-group id-group">
+                                            <label>Auftrags-Nr.</label>
+                                            <input
+                                                className="input-id font-mono"
+                                                type="text"
+                                                value={pos.id}
+                                                onChange={e => handlePositionChange(pos.temp_id, 'id', e.target.value)}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="pos-inputs">
-                                        {/* Row 1: Company & Date */}
-                                        <div className="row-group">
-                                            <input
-                                                className="input-company"
-                                                type="text"
-                                                value={pos.company}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'company', e.target.value)}
-                                                placeholder="Firma / Kunde"
-                                            />
-                                            <input
-                                                className="input-contact"
-                                                type="text"
-                                                value={pos.contact_person || ''}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'contact_person', e.target.value)}
-                                                placeholder="Sachbearbeiter"
-                                                style={{ flex: 1.5, minWidth: '100px' }}
-                                            />
-                                            <div className="date-group">
-                                                <span className="text-xs text-muted">Bestellt:</span>
+
+                                    {/* Block 1: Customer */}
+                                    <div className="card-section">
+                                        {/* Company & Contact (Side by Side) */}
+                                        <div className="grid-custom-company">
+                                            <div className="field-group">
+                                                <label>Firma / Kunde</label>
                                                 <input
-                                                    className="input-date"
+                                                    type="text"
+                                                    value={pos.company}
+                                                    onChange={e => handlePositionChange(pos.temp_id, 'company', e.target.value)}
+                                                    placeholder="Firma..."
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <label>Sachbearbeiter</label>
+                                                <input
+                                                    type="text"
+                                                    value={pos.contact_person || ''}
+                                                    onChange={e => handlePositionChange(pos.temp_id, 'contact_person', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Order Date & Delivery Date */}
+                                        <div className="grid-2-col">
+                                            <div className="field-group">
+                                                <label>Bestelldatum</label>
+                                                <input
                                                     type="date"
                                                     value={pos.date || ''}
                                                     onChange={e => handlePositionChange(pos.temp_id, 'date', e.target.value)}
                                                 />
                                             </div>
-                                        </div>
-
-                                        {/* Row 2: Quantity, Article ID, Description */}
-                                        <div className="row-group">
-                                            <input
-                                                className="input-qty"
-                                                type="number"
-                                                value={pos.quantity}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'quantity', e.target.value)}
-                                                placeholder="Menge"
-                                            />
-                                            <input
-                                                className="input-artid"
-                                                type="text"
-                                                value={pos.article_id || ''}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'article_id', e.target.value)}
-                                                placeholder="Artikel-Nr."
-                                                title="Artikelnummer (ID)"
-                                            />
-                                            <input
-                                                className="input-desc"
-                                                type="text"
-                                                value={pos.description}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'description', e.target.value)}
-                                                placeholder="Beschreibung"
-                                            />
-                                        </div>
-
-                                        {/* Row 3: Order ID, Value, Delivery Date */}
-                                        <div className="row-group">
-                                            <input
-                                                className="input-id"
-                                                type="text"
-                                                value={pos.id}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'id', e.target.value)}
-                                                placeholder="Auftrags-Nr."
-                                            />
-                                            <input
-                                                className="input-val"
-                                                type="number"
-                                                value={pos.value}
-                                                onChange={e => handlePositionChange(pos.temp_id, 'value', e.target.value)}
-                                                placeholder="Wert €"
-                                            />
-                                            <div className="date-group">
-                                                <span className="text-xs text-muted">Lieferung:</span>
+                                            <div className="field-group">
+                                                <label>Liefertermin</label>
                                                 <input
-                                                    className="input-date"
                                                     type="date"
                                                     value={pos.delivery_date || ''}
                                                     onChange={e => handlePositionChange(pos.temp_id, 'delivery_date', e.target.value)}
                                                 />
                                             </div>
+                                        </div>
+
+                                        {/* Article Data Row (4 Columns) */}
+                                        <div className="grid-4-col-custom">
+                                            <div className="field-group">
+                                                <label>Artikel-Nr.</label>
+                                                <input
+                                                    type="text"
+                                                    value={pos.article_id || ''}
+                                                    onChange={e => handlePositionChange(pos.temp_id, 'article_id', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <label>Zeichnung</label>
+                                                <input
+                                                    type="text"
+                                                    value={pos.drawing_number || ''}
+                                                    onChange={e => handlePositionChange(pos.temp_id, 'drawing_number', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <label>Menge</label>
+                                                <input
+                                                    type="number"
+                                                    value={pos.quantity}
+                                                    onChange={e => handlePositionChange(pos.temp_id, 'quantity', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="field-group">
+                                                <label>Gesamtwert</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={pos.value}
+                                                    onChange={e => handlePositionChange(pos.temp_id, 'value', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Description */}
+                                        <div className="field-group full-width">
+                                            <label>Beschreibung</label>
+                                            <input
+                                                type="text"
+                                                value={pos.description}
+                                                onChange={e => handlePositionChange(pos.temp_id, 'description', e.target.value)}
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -385,7 +455,7 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                 .import-modal-content {
                     background: var(--color-bg);
                     width: 100%;
-                    max-width: 800px;
+                    max-width: 393px;
                     max-height: 90vh;
                     border-radius: 20px;
                     display: flex;
@@ -452,6 +522,7 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                     background: #f8fafc; /* Subtle read-only indication */
                     color: var(--color-text-muted);
                     width: 100%;
+                    font-family: inherit; /* Fix: Match font for header date */
                 }
                 .staging-header-form label {
                     font-size: 0.85rem;
@@ -462,79 +533,164 @@ const ImportOrderModal = ({ onClose, initialText = '' }) => {
                 .positions-list {
                     display: flex;
                     flex-direction: column;
-                    gap: 12px;
+                    gap: 16px;
                 }
-                .position-row {
-                    background: white;
-                    padding: 12px;
-                    border-radius: 12px;
-                    border: 1px solid var(--color-border);
-                    display: flex;
-                    gap: 12px;
-                    align-items: flex-start;
-                }
-                @media (max-width: 600px) {
-                    .position-row {
-                        flex-direction: row;
-                        flex-wrap: wrap;
-                        padding: 10px;
-                    }
-                    .pos-actions { margin-right: -5px; }
-                    .input-company { flex-basis: 100% !important; }
-                }
-
-                .pos-actions { padding-top: 8px; }
                 
-                .pos-inputs {
-                    flex: 1;
+                /* Vertical Card Layout */
+                .position-card {
+                    background: white;
+                    border: 1px solid var(--color-border);
+                    border-radius: 12px;
+                    padding: 16px;
                     display: flex;
                     flex-direction: column;
-                    gap: 8px;
-                    min-width: 0;
+                    gap: 12px;
+                    box-shadow: var(--shadow-sm);
+                    position: relative; /* ENABLE ABSOLUTE POSITIONING */
+                    padding-top: 24px; /* Slight top padding incase title overlaps */
                 }
-                .row-group {
+                
+                .card-header-row {
                     display: flex;
-                    gap: 8px;
-                    align-items: center;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    border-bottom: 1px solid #f1f5f9;
+                    padding-bottom: 12px;
+                    margin-bottom: 4px;
                 }
-                @media (max-width: 500px) {
-                    .row-group:last-child { flex-wrap: wrap; }
-                    .input-id { flex-basis: 100%; }
-                    .input-val { flex: 1; }
-                    .input-date { flex: 1; }
+                
+                .card-section {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px; /* Standardized gap */
+                }
+                
+                .bg-muted {
+                    background: #f8fafc;
+                    padding: 12px;
+                    border-radius: 8px;
+                    border: 1px solid #f1f5f9;
                 }
 
-                .row-group input {
-                    padding: 8px;
+                .field-group {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 4px;
+                }
+                
+                .field-group label {
+                    font-size: 0.75rem;
+                    color: var(--color-text-muted);
+                    font-weight: 600;
+                    text-transform: uppercase;
+                }
+                
+                .field-group input {
+                    width: 100%;
+                    padding: 4px 8px; /* Slightly tighter vertical padding */
                     border: 1px solid var(--color-border);
                     border-radius: 6px;
                     font-size: 0.9rem;
+                    box-sizing: border-box; 
+                    height: 36px; /* Consistent height */
+                    font-family: inherit; /* Fix: Force consistent font for dates */
                 }
                 
-                .input-company { flex: 2; font-weight: bold; min-width: 0; }
-                .input-qty { width: 70px; }
-                .input-artid { width: 100px; border-color: var(--color-primary) !important; color: var(--color-primary); }
-                .input-desc { flex: 1; font-weight: 500; min-width: 0; }
-                .input-id { flex: 1; font-family: monospace; min-width: 0;}
-                .input-val { width: 100px; text-align: right; }
+                /* Grids */
+                .grid-2-col {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 12px;
+                }
                 
-                .date-group { display: flex; align-items: center; gap: 4px; }
-                .input-date { width: 130px; }
+                /* Custom grid for Company (larger) + Contact (smaller) */
+                .grid-custom-company {
+                    display: grid;
+                    grid-template-columns: 1.5fr 1fr; 
+                    gap: 12px;
+                }
+                
+                /* 4-Column Layout for Article Data */
+                .grid-4-col-custom {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr 0.8fr 1fr; /* ArticleID, Drawing, Qty, Value */
+                    gap: 12px;
+                    /* margin-top removed to rely on card-section gap */
+                }
+                
+                .grid-3-col-auto {
+                    display: grid;
+                    grid-template-columns: 80px 100px 1fr; /* Fixed widths for Qty/ID */
+                    gap: 8px;
+                }
 
-                /* Util */
+                .full-width {
+                    width: 100%;
+                }
+                
+                .input-id { background: transparent; border: none !important; font-size: 1.1rem !important; padding: 0 !important; color: var(--color-primary); font-weight: bold; width: auto !important; height: auto !important; }
+                .id-group input { background: transparent; border: none; padding: 0; }
+                
+                /* Corner Button Style (Copied from OrderList) */
+                .corner-btn {
+                    position: absolute;
+                    top: 12px;
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    border: 0 !important;
+                    outline: none !important;
+                    cursor: pointer;
+                    color: white !important;
+                    transition: all 0.2s;
+                    z-index: 100;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+                    padding: 0;
+                    margin: 0;
+                }
+                .delete-corner {
+                    right: 12px;
+                    background: #ef4444 !important;
+                }
+                .delete-corner:hover {
+                    background: #dc2626 !important;
+                    transform: scale(1.1);
+                    box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+                }
+
+                /* Mobile Tweaks */
+                @media (max-width: 500px) {
+                    .import-modal-overlay { padding: 0; }
+                    .import-modal-content { 
+                        width: 100%; 
+                        height: 100%; 
+                        max-height: 100%; 
+                        border-radius: 0; 
+                    }
+                    .staging-area { padding: 12px; }
+
+                    /* Force single column for all grids on mobile */
+                    .grid-2-col, 
+                    .grid-custom-company,
+                    .grid-4-col-custom { 
+                        grid-template-columns: 1fr; 
+                    }
+                }
+
+                /* Utils */
                 .text-primary { color: var(--color-primary); }
                 .text-muted { color: var(--color-text-muted); }
-                .text-sm { font-size: 0.85rem; }
-                .text-xs { font-size: 0.75rem; }
-                .mb-4 { margin-bottom: 1rem; }
-
-                .btn-delete-row {
-                    color: #ef4444; background: #fef2f2; border: none; padding: 6px; border-radius: 6px; cursor: pointer;
-                }
+                .font-bold { font-weight: 600; }
+                .font-mono { font-family: monospace; }
+                
                 .btn-add-pos {
                     align-self: flex-start; background: white; border: 1px dashed var(--color-border);
                     padding: 8px 16px; border-radius: 8px; color: var(--color-text-muted); cursor: pointer;
                     display: flex; align-items: center; gap: 8px;
+                    margin-top: 10px;
                 }
                 .staging-footer {
                     margin-top: auto; display: flex; justify-content: flex-end; gap: 12px; padding-top: 20px; border-top: 1px solid var(--color-border);

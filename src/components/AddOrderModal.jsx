@@ -94,7 +94,7 @@ const AddOrderModal = ({ onClose, onSelectManual }) => {
         .modal-content {
           background: white;
           width: 100%;
-          max-width: 500px;
+          max-width: 393px;
           border-radius: 20px 20px 0 0;
           padding: 1.5rem;
           box-shadow: 0 -4px 20px rgba(0,0,0,0.15);

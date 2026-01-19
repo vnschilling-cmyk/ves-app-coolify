@@ -1,9 +1,25 @@
 .time-tracking-floater {
-    position: fixed;
-    bottom: 80px;
+    position: fixed !important; /* Force fixed */
+    bottom: 80px !important;
     /* Above bottom nav */
-    right: 20px;
-    z-index: 100;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 393px;
+    z-index: 1000;
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 20px;
+    pointer-events: none;
+    /* Let clicks pass through empty space */
+    box-sizing: border-box;
+    transform: translateZ(0); /* Force GPU layer */
+}
+
+.time-tracking-floater>* {
+    pointer-events: auto;
+    /* Enable clicks on the button */
 }
 
 .start-work-fab {
@@ -98,7 +114,7 @@
     background: white;
     border-radius: 16px;
     width: 100%;
-    max-width: 400px;
+    max-width: 393px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;

@@ -156,7 +156,7 @@ const ScanOrderModal = ({ onClose, onScanComplete }) => {
             display: flex;
             flex-direction: column;
             padding: 20px;
-            max-width: 600px;
+            max-width: 393px;
             margin: 0 auto;
             width: 100%;
             height: 100%;

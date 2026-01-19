@@ -48,18 +48,24 @@ const Dashboard = () => {
 
     filteredOrders.forEach(order => {
       const orderLogs = workLogs.filter(log => log.order_id === order.db_id);
-      const orderValue = parseFloat(order.value);
+      const orderValue = parseFloat(order.value) || 0;
 
-      if (orderLogs.length > 0 && order.quantity > 0) {
-        const valuePerUnit = orderValue / parseInt(order.quantity);
-        orderLogs.forEach(log => {
-          const logVal = (log.quantity_produced || 0) * valuePerUnit;
-          if (!userStats[log.user_name]) userStats[log.user_name] = 0;
-          userStats[log.user_name] += logVal;
-        });
+      if (orderLogs.length > 0) {
+        const totalDuration = orderLogs.reduce((sum, log) => sum + (log.duration_minutes || 0), 0);
+
+        if (totalDuration > 0) {
+          orderLogs.forEach(log => {
+            const share = (log.duration_minutes || 0) / totalDuration;
+            const logVal = share * orderValue;
+            if (!userStats[log.user_name]) userStats[log.user_name] = 0;
+            userStats[log.user_name] += logVal;
+          });
+        }
       } else {
-        if (!userStats[order.user]) userStats[order.user] = 0;
-        userStats[order.user] += orderValue;
+        // Fallback: If no logs yet, attribute to order creator
+        const creator = order.user || 'nicht zugeordnet';
+        if (!userStats[creator]) userStats[creator] = 0;
+        userStats[creator] += orderValue;
       }
     });
 
@@ -101,12 +107,31 @@ const Dashboard = () => {
 
   // Bar Chart Data (Orders per Year)
   const barData = useMemo(() => {
-    // Sort years ascending for the chart
-    const sortedYears = [...years].sort((a, b) => a - b);
+    // Current year
+    const currentYear = new Date().getFullYear();
+    const minYear = currentYear - 4; // 4 past years
+
+    // Sort years ascending and filter for last 5 years
+    const sortedYears = [...years]
+      .filter(y => y >= minYear && y <= currentYear)
+      .sort((a, b) => a - b);
 
     // Count orders per year
     const counts = sortedYears.map(year => {
       return orders.filter(o => new Date(o.delivery_date || o.date).getFullYear() === year).length;
+    });
+
+    // Colors: Distinct colors for each year (not a gradient)
+    const distinctColors = [
+      '#ef4444', // Red
+      '#f97316', // Orange
+      '#eab308', // Yellow
+      '#22c55e', // Green
+      '#3b82f6', // Blue
+    ];
+    // Map colors to years. Since we have max 5 years, we just take the first 5 colors.
+    const bgColors = sortedYears.map((year, index) => {
+      return distinctColors[index % distinctColors.length];
     });
 
     return {
@@ -114,7 +139,7 @@ const Dashboard = () => {
       datasets: [{
         label: 'Anzahl Aufträge',
         data: counts,
-        backgroundColor: '#6366f1',
+        backgroundColor: bgColors,
         borderRadius: 4,
         maxBarThickness: 40,
       }]
@@ -203,9 +228,11 @@ const Dashboard = () => {
         
         .card {
           background: white;
-          padding: 1.5rem;
-          border-radius: 12px;
-          box-shadow: var(--shadow-md);
+          padding: 1.25rem;
+          border-radius: 16px;
+          box-shadow: var(--shadow-sm);
+          width: 100%;
+          border: 1px solid var(--color-border);
         }
 
         .pie-chart-card h3, .bar-chart-card h3 {

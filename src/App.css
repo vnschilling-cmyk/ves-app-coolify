@@ -1,23 +1,40 @@
+:root {
+    --app-max-width: 393px;
+}
+
+/* App Global Styles */
 /* App Global Styles */
 .app-container {
     min-height: 100vh;
     background-color: var(--color-bg);
     font-family: var(--font-family);
     width: 100%;
+    max-width: var(--app-max-width);
+    margin: 0 auto;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+    /* Subtle shadow for desktop view */
 }
 
 .app-header {
     background-color: white;
     border-bottom: 1px solid var(--color-border);
-    position: sticky;
+    position: fixed;
+    /* Fixed to keep it on top */
     top: 0;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    /* Center horizontally */
+    width: 100%;
+    max-width: var(--app-max-width);
     z-index: 10;
     box-shadow: var(--shadow-sm);
     padding-top: env(safe-area-inset-top);
 }
 
 .container {
-    max-width: 800px;
+    /* No max-width needed here as parent is constrained */
     margin: 0 auto;
     padding: 0 1rem;
 }
@@ -44,16 +61,23 @@
 }
 
 .main-content {
-    padding-top: 1.5rem;
+    padding-top: calc(60px + 1.5rem);
+    /* Adjust for fixed header */
     padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* Bottom Navigation */
+/* Bottom Navigation */
 .bottom-nav {
-    position: fixed;
-    bottom: 0;
+    position: fixed !important;
+    /* Force fixed */
+    bottom: 0 !important;
     left: 0;
     right: 0;
+    margin: 0 auto;
+    /* Center horizontally */
+    width: 100%;
+    max-width: var(--app-max-width);
     background: white;
     display: flex;
     justify-content: center;
@@ -61,8 +85,11 @@
     height: calc(70px + env(safe-area-inset-bottom));
     padding-bottom: env(safe-area-inset-bottom);
     border-top: 1px solid var(--color-border);
-    z-index: 50;
+    z-index: 1000;
+    /* Ensure high z-index */
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+    transform: translateZ(0);
+    /* Force GPU layer to help with scroll attachment */
 }
 
 .bottom-nav-inner {
@@ -84,20 +111,25 @@
     color: var(--color-text-muted);
     font-size: 0.75rem;
     gap: 4px;
-    flex: 1;
+    /* Removed flex: 1 to prevent stretching */
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: all 0.2s;
-    margin: 8px 4px;
-    border-radius: 12px;
-    padding: 4px 0;
-    max-width: 100px;
+    margin: 0 4px;
+    /* Reduced margin */
+    /* Fixed circle dimensions */
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    padding: 0;
 }
 
 .nav-item.active {
     background-color: var(--color-primary);
     color: white;
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    border-radius: 50%;
+    /* Ensure active is circle */
 }
 
 .nav-item:hover:not(.active) {
@@ -111,6 +143,10 @@
     box-shadow: none !important;
     margin: 0 !important;
     max-width: none !important;
+    /* Override fixed size for the plus button container */
+    width: auto !important;
+    height: auto !important;
+    border-radius: 0 !important;
 }
 
 .plus-circle {

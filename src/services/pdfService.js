@@ -114,6 +114,99 @@ export const parsePositionsFromText = (text) => {
 
         if (desc.length > 80) desc = desc.substring(0, 80) + '...';
 
+        // Extract Drawing Number
+        // Improved logic to avoid "gem. Zeichnung" false positives (like "Teile")
+        // 1. Look for KT-xxxx pattern specifically (Hübner style)
+        let drawingMatch = contentBlock.match(/(?:KT-\d{4,10})/i);
+        let drawingNumber = drawingMatch ? drawingMatch[0] : '';
+
+        if (!drawingNumber) {
+            // 2. Generic "Zeichnung: ..." search
+            // We use a regex that tries to exclude "gem. Zeichnung" by not capturing if preceded by "gem" (approximation via check)
+            const genericMatch = contentBlock.match(/(?:Zeichnung|Z\.?-?Nr\.?|Zeichnungsnr\.?|Zchng\.?)\s*[:.]?\s*([A-Z0-9.-]+)/i);
+
+            if (genericMatch) {
+                const candidate = genericMatch[1];
+                // Filter out known bad words or "gem. Zeichnung" artifacts
+                const lower = candidate.toLowerCase();
+                const precedingText = contentBlock.substring(0, genericMatch.index).trim();
+
+                const isGemMatch = precedingText.endsWith('gem.') || precedingText.endsWith('gem');
+                const isBadWord = ['teile', 'an', 'gemaess', 'gem'].includes(lower);
+
+                if (!isGemMatch && !isBadWord && candidate.length > 2) {
+                    drawingNumber = candidate;
+                }
+            }
+        }
+
+        // Final fallback: Look for "Zeichnung" followed by a number that appears LATER in the block than "Teile"
+        if (!drawingNumber && contentBlock.includes('Zeichnung')) {
+            const parts = contentBlock.split('Zeichnung');
+            if (parts.length > 1) {
+                // Check the part AFTER "Zeichnung"
+                const potential = parts[1].trim().split(/[\s,]/)[0]; // First word
+                if (potential && potential.match(/[0-9]/) && potential.length > 3) {
+                    drawingNumber = potential;
+                }
+            }
+        }
+
+        // Extract Raw Material
+        // User Hint: Look for "Artikelbezeichnung". Below that is number and description.
+        let rawMaterial = '';
+
+        // Strategy A: Explicit "Artikelbezeichnung" lookup
+        const artBezMatch = contentBlock.match(/Artikelbezeichnung[\s\S]*?\n\s*(.+?)(?=\n|$)/i);
+        if (artBezMatch && artBezMatch[1]) {
+            let line = artBezMatch[1].trim();
+
+            // Aggressive Cleanup using Split
+            // 1. Cut at "Zahlung", "Liefer" immediately
+            line = line.split(/(?:Zahlung|Liefer|Netto|Betrag)/i)[0];
+
+            // 2. Cut at Quantity pattern (e.g. " 100 Stück")
+            // matching: space + digits + optional decimals + space? + Unit
+            const qtyMatch = line.match(/(\s+\d+(?:[.,]\d+)?\s*(?:Stk|Stück|m|kg|x|Liter))/i);
+            if (qtyMatch) {
+                line = line.split(qtyMatch[0])[0];
+            }
+
+            // Clean up "Material:" prefix if it exists inside the line
+            line = line.replace(/^(?:Material|Werkstoff|Rohmaterial)[:\.]?\s*/i, '');
+
+            // Clean up "Menge" prefix (User specific request)
+            line = line.replace(/^Menge\s*/i, '');
+
+            if (line.trim().length > 3) {
+                rawMaterial = line.trim();
+            }
+        }
+
+        // Strategy B: Fallback to "Beistellungen/Material" header if A failed
+        if (!rawMaterial) {
+            const rawMatMatch = contentBlock.match(/(?:Beistellungen|Material|Werkstoff|Rohmaterial)\s*[:.]?\s*([\s\S]*?)(?=\n\s*(?:Liefertermin|Stück|ID|Zeichnung|$))/i);
+            if (rawMatMatch) {
+                let potentialRaw = rawMatMatch[1].trim();
+                // If it contains "Artikelbezeichnung" and wasn't caught above, parsing logic applies
+                if (potentialRaw.includes('Artikelbezeichnung')) {
+                    const parts = potentialRaw.split('Artikelbezeichnung');
+                    if (parts[1]) {
+                        const lines = parts[1].trim().split('\n');
+                        if (lines[0]) potentialRaw = lines[0];
+                    }
+                } else {
+                    // Take first non-empty line
+                    const lines = potentialRaw.split('\n').filter(l => l.trim().length > 0);
+                    if (lines.length > 0) potentialRaw = lines[0].trim();
+                }
+
+                if (potentialRaw.length > 2) rawMaterial = potentialRaw;
+            }
+        }
+        // Cleanup Raw Material
+        rawMaterial = rawMaterial.replace(/\s+/g, ' ').trim();
+
         positions.push({
             temp_id: Math.random().toString(36).substr(2, 9),
             id: `${globalOrderId}-${posNr}`,
@@ -121,7 +214,9 @@ export const parsePositionsFromText = (text) => {
             description: desc,
             article_id: articleId,
             value: value.toFixed(2),
-            delivery_date: deliveryDate || globalDate
+            delivery_date: deliveryDate || globalDate,
+            drawing_number: drawingNumber,
+            raw_material: rawMaterial
         });
     }
 
@@ -134,7 +229,7 @@ export const parsePositionsFromText = (text) => {
 
     // Check for explicit "Hübner"
     if (text.match(/JOHANNES\s+HÜBNER/i)) {
-        company = 'Johannes Hübner Giessen';
+        company = 'Johannes Hübner'; // Shortened as requested
     } else {
         const lines = text.split('\n');
         for (const line of lines) {

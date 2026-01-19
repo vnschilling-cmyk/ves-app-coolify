@@ -6,6 +6,7 @@ export const getOrders = async () => {
     // PocketBase returns a paginated list by default, using getFullList to get all
     const records = await pb.collection('orders').getFullList({
       sort: '-created', // created is the default timestamp field in PB
+      expand: 'article_id,time_entries(order_id).work_step_id'
     });
     return records;
   } catch (error) {
@@ -39,7 +40,7 @@ export const saveOrder = async (order) => {
       status: 'Erfasst' // Default status
     };
 
-    const record = await pb.collection('orders').create(data);
+    const record = await pb.collection('orders').create(data, { requestKey: null });
     return record;
   } catch (error) {
     if (error.message === 'DUPLICATE_ORDER') throw error;
@@ -48,42 +49,83 @@ export const saveOrder = async (order) => {
   }
 };
 
-export const saveOrders = async (orders) => {
+export const saveOrders = async (orders, originalFile = null) => {
   if (!orders || orders.length === 0) return [];
 
-  // PocketBase doesn't have bulk insert in the JS SDK yet, we loop (parallel/batch)
-  // For safety/simplicity we do sequential or parallel. Parallel is faster.
-  const promises = orders.map(order => {
-    const data = {
-      order_id: order.id,
-      value: order.value,
-      date: order.date,
-      user_name: order.user,
-      company: order.company,
-      contact_person: order.contact_person,
-      article_id: order.article_id,
-      quantity: order.quantity,
-      delivery_date: order.delivery_date
-    };
-    return pb.collection('orders').create(data);
-  });
+  const results = [];
+  const errors = [];
 
-  try {
-    const results = await Promise.all(promises);
-    return results;
-  } catch (error) {
-    console.error('Error saving bulk orders:', error);
-    throw error;
+  for (const order of orders) {
+    try {
+      // Check for duplicate
+      try {
+        const existing = await pb.collection('orders').getFirstListItem(`order_id="${order.id}"`);
+        if (existing) {
+          console.warn(`Skipping duplicate order: ${order.id}`);
+          continue;
+        }
+      } catch (e) {
+        if (e.status !== 404) throw e;
+      }
+
+      const data = {
+        order_id: order.id,
+        value: order.value,
+        date: order.date,
+        user_name: order.user,
+        company: order.company,
+        contact_person: order.contact_person,
+        article_id: order.article_id,
+        quantity: order.quantity,
+        delivery_date: order.delivery_date
+      };
+
+      let record;
+      if (originalFile) {
+        const formData = new FormData();
+        Object.entries(data).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) formData.append(key, val);
+        });
+        formData.append('original_pdf', originalFile);
+        record = await pb.collection('orders').create(formData, { requestKey: null });
+      } else {
+        record = await pb.collection('orders').create(data, { requestKey: null });
+      }
+
+      results.push(record);
+    } catch (err) {
+      console.error(`Failed to import order ${order.id}:`, err);
+      // Log detailed error for debugging
+      if (err.data) console.error("Error Details:", err.data);
+      errors.push({ id: order.id, error: err });
+    }
   }
+
+  if (errors.length > 0) {
+    console.warn("Some imports failed:", errors);
+    if (results.length === 0 && orders.length > 0) throw new Error("Alle Importe sind fehlgeschlagen.");
+  }
+
+  return results;
 };
 
 export const deleteOrder = async (id) => {
   try {
-    // id here is the PocketBase Record ID (db_id in context)
+    // 1. Delete all work logs for this order
+    const logs = await pb.collection('work_logs').getFullList({
+      filter: `order_id="${id}"`
+    });
+
+    if (logs.length > 0) {
+      await Promise.all(logs.map(log => pb.collection('work_logs').delete(log.id)));
+    }
+
+    // 2. Delete the order
     await pb.collection('orders').delete(id);
     return true;
   } catch (error) {
     console.error('Error deleting order:', error);
+    alert('Fehler beim Löschen des Auftrags: ' + error.message);
     return false;
   }
 };
@@ -215,12 +257,16 @@ export const getOpenWorkLog = async (userName) => {
   }
 };
 
-export const startWorkLog = async (orderId, userName) => {
+export const startWorkLog = async (orderId, userName, taskType = null, mode = 'Zeitaufnahme') => {
   try {
     const data = {
-      order_id: orderId, // This should be the Record ID of the order
+      order_id: orderId,
       user_name: userName,
-      start_time: new Date().toISOString()
+      task_type: taskType,
+      mode: mode,
+      start_time: new Date().toISOString(),
+      pause_time_minutes: 0,
+      duration_minutes: 0
     };
     const record = await pb.collection('work_logs').create(data);
 
@@ -234,11 +280,12 @@ export const startWorkLog = async (orderId, userName) => {
   }
 };
 
-export const stopWorkLog = async (logId, quantity) => {
+export const stopWorkLog = async (logId, quantity, durationMinutes = 0) => {
   try {
     const data = {
       end_time: new Date().toISOString(),
-      quantity_produced: parseInt(quantity) || 0
+      quantity_produced: parseInt(quantity) || 0,
+      duration_minutes: durationMinutes
     };
     const record = await pb.collection('work_logs').update(logId, data);
     return record;
@@ -271,9 +318,20 @@ export const updateOrderStatus = async (orderDbId, status) => {
   }
 };
 
+// Generic update for any order fields
+export const updateOrder = async (orderDbId, updates) => {
+  try {
+    const record = await pb.collection('orders').update(orderDbId, updates);
+    return record;
+  } catch (error) {
+    console.error('Error updating order:', error);
+    return null;
+  }
+};
+
 export const updateWorkLog = async (logId, updates) => {
   try {
-    const record = await pb.collection('work_logs').update(logId, updates);
+    const record = await pb.collection('time_entries').update(logId, updates);
     return record;
   } catch (error) {
     console.error('Error updating work log:', error);
@@ -283,7 +341,7 @@ export const updateWorkLog = async (logId, updates) => {
 
 export const createWorkLog = async (logData) => {
   try {
-    const record = await pb.collection('work_logs').create(logData);
+    const record = await pb.collection('time_entries').create(logData);
     return record;
   } catch (error) {
     console.error('Error creating work log:', error);
@@ -293,7 +351,7 @@ export const createWorkLog = async (logData) => {
 
 export const deleteWorkLog = async (logId) => {
   try {
-    await pb.collection('work_logs').delete(logId);
+    await pb.collection('time_entries').delete(logId);
     return true;
   } catch (error) {
     console.error('Error deleting work log:', error);
@@ -337,11 +395,22 @@ export const getArticleByArticleId = async (articleId) => {
 
 export const createArticle = async (data) => {
   try {
-    const record = await pb.collection('articles').create(data);
+    // requestKey: null disables auto-cancellation for this request
+    const record = await pb.collection('articles').create(data, { requestKey: null });
     return record;
   } catch (error) {
     console.error('Error creating article:', error);
-    alert('Fehler beim Erstellen des Artikels: ' + (error.message || 'Unbekannter Fehler. Prüfen Sie ob die "articles" Collection in PocketBase existiert.'));
+
+    // Improved error reporting
+    let safeMessage = error.message || 'Unknown Error';
+    if (error.data && Object.keys(error.data).length > 0) {
+      // Safe stringify of error detail
+      safeMessage += ' | Details: ' + JSON.stringify(error.data);
+    } else if (error.originalError) {
+      safeMessage += ' | Orig: ' + error.originalError.message;
+    }
+
+    alert('Fehler beim Erstellen des Artikels: ' + safeMessage);
     throw error;
   }
 };
@@ -352,6 +421,56 @@ export const updateArticle = async (id, data) => {
     return record;
   } catch (error) {
     console.error('Error updating article:', error);
-    return null;
+    // Return explicit error info
+    throw error;
+  }
+};
+
+export const deleteArticle = async (id) => {
+  try {
+    await pb.collection('articles').delete(id);
+    return true;
+  } catch (error) {
+    console.error('Error deleting article:', error);
+    alert('Fehler beim Löschen des Artikels: ' + error.message);
+    return false;
+  }
+};
+
+// --- Settings (Global Config) ---
+
+export const getAppSetting = async (key, defaultValue = null) => {
+  try {
+    // Attempt to find the setting by key
+    const record = await pb.collection('settings').getFirstListItem(`key="${key}"`);
+    return record.value ? JSON.parse(record.value) : defaultValue;
+  } catch (error) {
+    if (error.status !== 404) console.error(`Error fetching setting '${key}':`, error);
+    return defaultValue;
+  }
+};
+
+export const saveAppSetting = async (key, value) => {
+  try {
+    const jsonValue = JSON.stringify(value);
+
+    // Check if exists
+    try {
+      const existing = await pb.collection('settings').getFirstListItem(`key="${key}"`);
+      // Update
+      await pb.collection('settings').update(existing.id, { value: jsonValue });
+    } catch (err) {
+      if (err.status === 404) {
+        // Create
+        await pb.collection('settings').create({ key, value: jsonValue });
+      } else {
+        throw err;
+      }
+    }
+    return true;
+  } catch (error) {
+    console.error(`Error saving setting '${key}':`, error);
+    alert('Fehler beim Speichern der Einstellung: ' + (error.message || 'Prüfen Sie, ob die Collection "settings" existiert.'));
+    return false;
   }
 };
